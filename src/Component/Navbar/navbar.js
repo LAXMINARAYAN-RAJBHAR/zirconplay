@@ -47,12 +47,14 @@ const Navbar = ({ setSideNavbarFunc, sideNavbar }) => {
         <div className="navbarHamberger" onClick={sideNavbarFunc}>
           <ListIcon sx={{ color: "white" }} />
         </div>
-        
+
         <Link to="/" className="navbar-logo-link">
           <img src={MyLogo} alt="App Logo" className="mylogo" />
           <span
             className="logoText"
-            onClick={() => window.location.reload()} // Add this
+            onClick={() => {
+              window.location.href = "/"; // Navigate to home AND stops any playing video
+            }}
           >
             {"RollamRoll".split("").map((char, i) => (
               <span
