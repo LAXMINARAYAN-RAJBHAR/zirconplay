@@ -53,7 +53,13 @@ const Navbar = ({ setSideNavbarFunc, sideNavbar }) => {
           <span
             className="logoText"
             onClick={() => {
-              window.location.href = "/"; // Navigate to home AND stops any playing video
+              const base =
+                window.location.origin + window.location.pathname + "#/";
+              if (window.location.href === base) {
+                window.location.reload(); // already on home, just reload
+              } else {
+                window.location.href = base; // navigate to home (acts as reload)
+              }
             }}
           >
             {"RollamRoll".split("").map((char, i) => (
