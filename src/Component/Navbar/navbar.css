@@ -129,17 +129,26 @@
         font-size: 16px;
     }
 }
-.navbar_searchIconBox{
-    cursor: pointer;
-    width: 70px;
-    border: 1px solid rgb(42, 42, 42);
-    background-color: rgb(42, 42, 42);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    border-top-right-radius: 20px;
-    border-bottom-right-radius: 20px;
+.navbar_searchIconBox {
+  cursor: pointer;
+  width: 70px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(42, 42, 42, 0.6);
+  backdrop-filter: blur(8px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-top-right-radius: 20px;
+  border-bottom-right-radius: 20px;
+  transition: all 0.3s ease;
 }
+
+.navbar_searchIconBox:hover {
+  background: rgba(58, 58, 58, 0.8);
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.7);
+}
+
+
 .navbar_mike{
     display: flex;
     justify-content: center;
@@ -150,6 +159,13 @@
     height: 40px;
     cursor: pointer;
 }
+.navbar_mike:hover {
+  background-color: rgba(58, 58, 58, 0.8);
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.7);
+}
+
+
+
 /* ---------middle navbar section------- */
 .navbar-right{
     display: flex;
