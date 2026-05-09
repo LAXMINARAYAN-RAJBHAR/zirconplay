@@ -8,6 +8,7 @@ const API_KEYS = [
   process.env.REACT_APP_YOUTUBE_KEY_3,
   process.env.REACT_APP_YOUTUBE_KEY_4,
   process.env.REACT_APP_YOUTUBE_KEY_5,
+  process.env.REACT_APP_YOUTUBE_KEY_6,
 ];
 
 let currentKeyIndex = 0;
@@ -126,7 +127,13 @@ const YouTubeSearch = () => {
   };
 
   return (
-    <div style={{ background: "#0f0f0f", minHeight: "100vh", paddingTop: "70px", fontFamily: "Roboto, Arial, sans-serif" }}>
+    <div style={{ 
+  background: "#0f0f0f", 
+  minHeight: "100vh", 
+  paddingTop: "70px",
+  overflowX: "hidden",  // ← add this
+  width: "100%"          // ← and this
+}}>
 
       {error && (
         <div style={{ background: "#ff4444", color: "white", padding: "12px 20px", margin: "10px 20px", borderRadius: "6px", fontSize: "14px" }}>
@@ -135,7 +142,7 @@ const YouTubeSearch = () => {
       )}
 
       {loading && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "16px", padding: "20px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "16px", padding: "20px" }}>
           {[...Array(8)].map((_, i) => (
             <div key={i} style={{ background: "#272727", borderRadius: "12px", overflow: "hidden" }}>
               <div style={{ width: "100%", paddingTop: "56.25%", background: "#3a3a3a", animation: "pulse 1.5s infinite" }} />
