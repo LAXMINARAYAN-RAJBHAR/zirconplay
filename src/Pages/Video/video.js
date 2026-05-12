@@ -97,7 +97,6 @@ const Video = () => {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  // ── all state at the top ──────────────────────────────────────────────────
   const [message, setMessage] = useState("");
   const [autoPlay, setAutoPlay] = useState(true);
   const [showControls, setShowControls] = useState(true);
@@ -114,13 +113,11 @@ const Video = () => {
   const controlsTimer = useRef(null);
   const videoRef = useRef(null);
 
-  // ── derived values ────────────────────────────────────────────────────────
   const currentIndex = videos.findIndex((v) => v.id === Number(id));
   const video = videos[currentIndex];
   const nextVideo = videos[currentIndex + 1] || videos[0];
   const prevVideo = videos[currentIndex - 1] || videos[videos.length - 1];
 
-  // ── handlers ──────────────────────────────────────────────────────────────
   const handleMouseMove = () => {
     setShowControls(true);
     clearTimeout(controlsTimer.current);
@@ -131,31 +128,16 @@ const Video = () => {
     if (autoPlay) navigate(`/video/${nextVideo.id}`);
   };
 
-  const handleVideoError = () => {
-    setVideoError(true);
-  };
+  const handleVideoError = () => setVideoError(true);
 
   const handleLike = () => {
-    if (liked) {
-      setLiked(false);
-      setLikeCount((c) => c - 1);
-    } else {
-      setLiked(true);
-      setLikeCount((c) => c + 1);
-      if (disliked) setDisliked(false);
-    }
+    if (liked) { setLiked(false); setLikeCount((c) => c - 1); }
+    else { setLiked(true); setLikeCount((c) => c + 1); if (disliked) setDisliked(false); }
   };
 
   const handleDislike = () => {
-    if (disliked) {
-      setDisliked(false);
-    } else {
-      setDisliked(true);
-      if (liked) {
-        setLiked(false);
-        setLikeCount((c) => c - 1);
-      }
-    }
+    if (disliked) { setDisliked(false); }
+    else { setDisliked(true); if (liked) { setLiked(false); setLikeCount((c) => c - 1); } }
   };
 
   const handleShare = () => {
@@ -167,18 +149,12 @@ const Video = () => {
   const handleCommentSubmit = () => {
     if (!message.trim()) return;
     setComments((prev) => [
-      {
-        id: Date.now(),
-        user: "Laxminarayan",
-        text: message,
-        date: new Date().toISOString().slice(0, 10),
-      },
+      { id: Date.now(), user: "Laxminarayan", text: message, date: new Date().toISOString().slice(0, 10) },
       ...prev,
     ]);
     setMessage("");
   };
 
-  // ── effects ───────────────────────────────────────────────────────────────
   useEffect(() => {
     const handleSpacebar = (e) => {
       if (e.code === "Space" || e.key === " ") {
@@ -192,7 +168,6 @@ const Video = () => {
     return () => window.removeEventListener("keydown", handleSpacebar);
   }, []);
 
-  // reset like/dislike/error when navigating to a different video
   useEffect(() => {
     setLiked(false);
     setDisliked(false);
@@ -200,14 +175,12 @@ const Video = () => {
     setVideoError(false);
   }, [id]);
 
-  // ── guard ─────────────────────────────────────────────────────────────────
   if (!video)
     return <p style={{ color: "white", padding: "20px" }}>Video not found</p>;
 
   const suggestions = videos.filter((v) => v.id !== video.id);
   const formatName = video.src?.split(".").pop().split("?")[0].toUpperCase();
 
-  // ── render ────────────────────────────────────────────────────────────────
   return (
     <div className="video">
       <div className="videoPostSection">
@@ -262,34 +235,20 @@ const Video = () => {
             <source src={video.src} type={getVideoType(video.src)} />
             Your browser does not support the video tag.
           </video>
-          {/* ── floating like / dislike / share on video frame ── */}
-<div className="video_frame_actions">
-  <div
-    className={`video_frame_btn ${liked ? "active" : ""}`}
-    onClick={handleLike}
-    title="Like"
-  >
-    <ThumbUpOutlinedIcon fontSize="small" />
-    <span>{likeCount}</span>
-  </div>
 
-  <div
-    className={`video_frame_btn ${disliked ? "active" : ""}`}
-    onClick={handleDislike}
-    title="Dislike"
-  >
-    <ThumbDownAltOutlinedIcon fontSize="small" />
-  </div>
-
-  <div
-    className="video_frame_btn"
-    onClick={handleShare}
-    title="Share"
-  >
-    <ShareIcon fontSize="small" />
-    <span>Share</span>
-  </div>
-</div>
+          <div className="video_frame_actions">
+            <div className={`video_frame_btn ${liked ? "active" : ""}`} onClick={handleLike} title="Like">
+              <ThumbUpOutlinedIcon fontSize="small" />
+              <span>{likeCount}</span>
+            </div>
+            <div className={`video_frame_btn ${disliked ? "active" : ""}`} onClick={handleDislike} title="Dislike">
+              <ThumbDownAltOutlinedIcon fontSize="small" />
+            </div>
+            <div className="video_frame_btn" onClick={handleShare} title="Share">
+              <ShareIcon fontSize="small" />
+              <span>Share</span>
+            </div>
+          </div>
         </div>
 
         {/* ── up next preview ── */}
@@ -326,7 +285,6 @@ const Video = () => {
             </div>
           </div>
 
-          {/* share toast */}
           {shareToast && (
             <div style={{
               position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)",
@@ -362,12 +320,8 @@ const Video = () => {
                   onKeyDown={(e) => e.key === "Enter" && handleCommentSubmit()}
                 />
                 <div className="cancelSubmitComment">
-                  <div className="cancelcomment" onClick={() => setMessage("")}>
-                    Cancel
-                  </div>
-                  <div className="cancelcomment" onClick={handleCommentSubmit}>
-                    Comment
-                  </div>
+                  <div className="cancelcomment" onClick={() => setMessage("")}>Cancel</div>
+                  <div className="cancelcomment" onClick={handleCommentSubmit}>Comment</div>
                 </div>
               </div>
             </div>
