@@ -572,6 +572,25 @@ const ReelItem = ({ reel }) => {
   const isMounted = useRef(true);
   const observerRef = useRef(null);
   const iconTimeoutRef = useRef(null);
+  const [showComments, setShowComments] = useState(false);
+const [commentText, setCommentText] = useState("");
+const [comments, setComments] = useState([]);
+const [shareToast, setShareToast] = useState(false);
+
+const handleCommentSubmit = () => {
+  if (!commentText.trim()) return;
+  setComments((prev) => [
+    { id: Date.now(), text: commentText, user: "Laxminarayan" },
+    ...prev,
+  ]);
+  setCommentText("");
+};
+
+const handleShare = () => {
+  navigator.clipboard.writeText(window.location.href).catch(() => {});
+  setShareToast(true);
+  setTimeout(() => setShareToast(false), 2500);
+};
 
   const isYouTube = (url) =>
     url.includes("youtube.com") || url.includes("youtu.be");
@@ -689,24 +708,57 @@ const ReelItem = ({ reel }) => {
         )}
 
         <div className="reel_actions">
-          <div className="reel_action_btn" onClick={() => setLiked(!liked)}>
-            <ThumbUpOutlinedIcon
-              style={{ color: liked ? "#ff0000" : "white" }}
-            />
-            <span>{liked ? reel.likes + 1 : reel.likes}</span>
-          </div>
-          <div className="reel_action_btn">
-            <ThumbDownAltOutlinedIcon style={{ color: "white" }} />
-          </div>
-          <div className="reel_action_btn">
-            <ChatBubbleOutlineIcon style={{ color: "white" }} />
-            <span>Comment</span>
-          </div>
-          <div className="reel_action_btn" onClick={toggleMute}>
-            <ShareOutlinedIcon style={{ color: "white" }} />
-            <span>Share</span>
-          </div>
+  <div className="reel_action_btn" onClick={() => setLiked(!liked)}>
+    <ThumbUpOutlinedIcon style={{ color: liked ? "#ff0000" : "white" }} />
+    <span>{liked ? reel.likes + 1 : reel.likes}</span>
+  </div>
+
+  <div className="reel_action_btn">
+    <ThumbDownAltOutlinedIcon style={{ color: "white" }} />
+  </div>
+
+  {/* ✅ Comment — toggles the comment panel */}
+  <div className="reel_action_btn" onClick={() => setShowComments((v) => !v)}>
+    <ChatBubbleOutlineIcon style={{ color: showComments ? "#ff0000" : "white" }} />
+    <span>{comments.length || "Comment"}</span>
+  </div>
+
+  {/* ✅ Share — copies link, was wrongly calling toggleMute before */}
+  <div className="reel_action_btn" onClick={handleShare}>
+    <ShareOutlinedIcon style={{ color: "white" }} />
+    <span>Share</span>
+  </div>
+</div>
+
+{/* ✅ Comment panel */}
+{showComments && (
+  <div className="reel_comment_panel">
+    <div className="reel_comment_input_row">
+      <input
+        type="text"
+        value={commentText}
+        onChange={(e) => setCommentText(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && handleCommentSubmit()}
+        placeholder="Add a comment..."
+        className="reel_comment_input"
+      />
+      <button className="reel_comment_submit" onClick={handleCommentSubmit}>Post</button>
+    </div>
+    <div className="reel_comment_list">
+      {comments.map((c) => (
+        <div key={c.id} className="reel_comment_item">
+          <span className="reel_comment_user">{c.user}</span>
+          <span className="reel_comment_text">{c.text}</span>
         </div>
+      ))}
+    </div>
+  </div>
+)}
+
+{/* ✅ Share toast */}
+{shareToast && (
+  <div className="reel_share_toast">Link copied to clipboard</div>
+)}
 
         <div className="reel_info">
           <div className="reel_user">

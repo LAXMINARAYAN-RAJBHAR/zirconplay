@@ -179,3 +179,78 @@
     height: 100dvh;
   }
 }
+.reel_comment_panel {
+  position: absolute;
+  bottom: 80px;
+  left: 0;
+  right: 60px;
+  background: rgba(0, 0, 0, 0.85);
+  border-radius: 10px;
+  padding: 12px;
+  z-index: 20;
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.reel_comment_input_row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.reel_comment_input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 20px;
+  padding: 6px 14px;
+  color: white;
+  font-size: 13px;
+  outline: none;
+}
+
+.reel_comment_input::placeholder {
+  color: #aaa;
+}
+
+.reel_comment_submit {
+  background: #ff0000;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.reel_comment_item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.reel_comment_user {
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.reel_comment_text {
+  font-size: 13px;
+  color: #ddd;
+}
+
+.reel_share_toast {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #333;
+  color: #fff;
+  padding: 8px 18px;
+  border-radius: 999px;
+  font-size: 13px;
+  z-index: 30;
+  white-space: nowrap;
+}

@@ -31,9 +31,9 @@
     font-size: 20px;
     font-weight: 700;
 }
-.youtube_video_ProfileBlock{
+.youtube_video_ProfileBlock {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start; /* was space-between */
     margin-top: 10px;
 }
 .youtube_video_ProfileBlock_left{
@@ -74,29 +74,6 @@
     font-weight: 600;
     cursor: pointer;
     font-size: 14px;
-}
-.youtube_video_likeBlock{
-    display: flex;
-    gap: 10px;
-    background-color: #a5a5a538;
-    justify-content: center;
-    align-items: center;
-    padding: 10px 10px;
-    box-sizing: border-box;
-    border-radius: 18px;
-    cursor: pointer;
-}
-.youtube_video_likeBlock_Like{
-    display: flex;
-    gap: 10px;
-}
-.youtube_video_likeBlock_NoOfLikes{
-    font-weight: 500;   
-}
-.youtubeVideoDivider{
-    width: 0px;
-    height: 20px;
-    border: 1px solid;
 }
 .youtube_video_About{
     display: flex;
@@ -236,11 +213,59 @@
 
 /* Wrapper — positions controls overlay on top of video */
 .video_player_wrapper {
-  position: relative;
-  width: 100%;
-  background: #000;
-  border-radius: 10px;
-  overflow: hidden;
+  position: relative; /* needed for overlay positioning */
+}
+
+.video_frame_actions {
+  position: absolute;
+  bottom: 60px; /* sits just above the native video controls bar */
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 10;
+}
+
+.video_frame_btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  color: #fff;
+  border-radius: 50px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 500;
+  transition: background 0.2s, transform 0.15s;
+  user-select: none;
+  min-width: 48px;
+  text-align: center;
+}
+
+.video_frame_btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.08);
+}
+
+.video_frame_btn.active {
+  color: #e70f0f;
+  background: rgba(26, 115, 232, 0.2);
+}
+
+.video_frame_btn span {
+  font-size: 11px;
+  line-height: 1;
+}
+.video_frame_actions {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.video_player_wrapper:hover .video_frame_actions {
+  opacity: 1;
 }
 
 /* Floating controls bar — sits ON TOP of video */
