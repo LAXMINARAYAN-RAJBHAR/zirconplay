@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import "./navbar.css";
 import ListIcon from "@mui/icons-material/List";
 import MyLogo from "../../assests/mylogo.png";
-import TravelExploreIcon from "@mui/icons-material/TravelExplore";
+import PublicIcon from "@mui/icons-material/Public";
 import SearchIcon from "@mui/icons-material/Search";
 import KeyboardVoiceIcon from "@mui/icons-material/KeyboardVoice";
 import VideoCameraFrontIcon from "@mui/icons-material/VideoCameraFront";
@@ -138,13 +138,13 @@ const Navbar = ({
   };
 
   const doSearch = (q) => {
-  if (!q.trim()) return;
-  setShowDropdown(false);
-  setSearchQuery(q);
-  setIsSearchFocused(true);
-  navigate(`/search?q=${encodeURIComponent(q)}`);
-  setTimeout(() => setIsSearchFocused(false), 1500);
-};
+    if (!q.trim()) return;
+    setShowDropdown(false);
+    setSearchQuery(q);
+    setIsSearchFocused(true);
+    navigate(`/search?q=${encodeURIComponent(q)}`);
+    setTimeout(() => setIsSearchFocused(false), 1500);
+  };
 
   const handleKeyDown = (e) => {
     if (!showDropdown) {
@@ -270,9 +270,9 @@ const Navbar = ({
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             onFocus={() => {
-              if (searchQuery.trim()) setShowDropdown(true);
-              setIsSearchFocused(true);
-            }}
+  if (searchQuery.trim()) setShowDropdown(true);
+}}
+onBlur={() => {}}
             onBlur={() => setIsSearchFocused(false)}
             autoComplete="off"
           />
@@ -307,16 +307,14 @@ const Navbar = ({
           {/* 🔍 Search icon — rotates on focus */}
           <div
             className="navbar_searchIconBox"
-            onClick={() => {
-              setIsSearchFocused(true);
-              setTimeout(() => setIsSearchFocused(false), 800);
-              doSearch(searchQuery);
-            }}
+            onClick={() => doSearch(searchQuery)}
           >
-            <TravelExploreIcon
+            <PublicIcon
               sx={{
                 fontSize: "28px",
-                animation: isSearchFocused ? "spinIcon 0.8s linear" : "none",
+                animation: isSearchFocused
+                  ? "spinIcon 0.8s linear infinite"
+                  : "none",
               }}
             />
           </div>
