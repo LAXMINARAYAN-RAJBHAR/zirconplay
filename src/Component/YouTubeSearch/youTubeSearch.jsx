@@ -45,7 +45,7 @@ const YouTubeSearch = () => {
   const [selectedVideoIndex, setSelectedVideoIndex] = useState(null);
   const [liked, setLiked] = useState(false);
   const [disliked, setDisliked] = useState(false);
-  const [subscribed, setSubscribed] = useState(false);
+  const [subscribedChannels, setSubscribedChannels] = useState(new Set());
   const [comment, setComment] = useState("");
   const [showFullDesc, setShowFullDesc] = useState(false);
   const [comments, setComments] = useState([
@@ -73,62 +73,140 @@ const YouTubeSearch = () => {
   ]);
 
   const location = useLocation();
+
+  // ✅ All refs
   const autoplayRef = useRef(autoplay);
   const chipsRef = useRef(null);
+  const playerRef = useRef(null);
+  const resultsRef = useRef(results);
+  const indexRef = useRef(selectedVideoIndex);
 
+  // ✅ Keep refs in sync with state
   useEffect(() => {
     autoplayRef.current = autoplay;
   }, [autoplay]);
+  useEffect(() => {
+    resultsRef.current = results;
+  }, [results]);
+  useEffect(() => {
+    indexRef.current = selectedVideoIndex;
+  }, [selectedVideoIndex]);
 
+  // ✅ Load YouTube IFrame API script once on mount
+  useEffect(() => {
+    if (!window.YT) {
+      const tag = document.createElement("script");
+      tag.src = "https://www.youtube.com/iframe_api";
+      document.body.appendChild(tag);
+    }
+  }, []);
+
+  // ✅ Init/reinit YT Player whenever selectedVideo changes
   useEffect(() => {
     if (!selectedVideo) return;
-    const handleMessage = (event) => {
-      if (event.origin !== "https://www.youtube.com") return;
-      try {
-        const data = JSON.parse(event.data);
-        if (data.event === "onStateChange" && data.info === 0) {
-          if (!autoplayRef.current) return;
-          const n = selectedVideoIndex + 1;
-          if (n < results.length) {
-            setSelectedVideo(results[n].id.videoId);
-            setSelectedVideoIndex(n);
-            setComment("");
-            setLiked(false);
-            setDisliked(false);
-            setShowFullDesc(false);
-          }
-        }
-      } catch (e) {}
-    };
-    window.addEventListener("message", handleMessage);
-    return () => window.removeEventListener("message", handleMessage);
-  }, [selectedVideo, selectedVideoIndex, results]);
 
+    let pollInterval = null;
+
+    const initPlayer = () => {
+      if (playerRef.current) {
+        try {
+          playerRef.current.destroy();
+        } catch (e) {}
+        playerRef.current = null;
+      }
+
+      // Clear old div and recreate it so YT has a fresh mount point
+      const container = document.getElementById("yt-player-container");
+      if (container) {
+        container.innerHTML = "";
+        const div = document.createElement("div");
+        div.id = "yt-player";
+        container.appendChild(div);
+      }
+
+      playerRef.current = new window.YT.Player("yt-player", {
+        height: window.innerWidth < 768 ? "220" : "500",
+        width: "100%",
+        videoId: selectedVideo,
+        playerVars: { autoplay: 1, rel: 0, enablejsapi: 1 },
+        events: {
+          onReady: () => {
+            // Start polling player state every second
+            pollInterval = setInterval(() => {
+              if (!playerRef.current) return;
+              try {
+                const state = playerRef.current.getPlayerState();
+                // 0 = ended, check autoplay ref
+                if (state === 0 && autoplayRef.current) {
+                  clearInterval(pollInterval);
+                  const currentResults = resultsRef.current;
+                  const currentIndex = indexRef.current;
+                  const n = currentIndex + 1;
+                  if (n < currentResults.length) {
+                    openVideo(currentResults[n], n);
+                  }
+                }
+              } catch (e) {}
+            }, 1000);
+          },
+          onStateChange: (event) => {
+            // Keep this as backup — works in some browsers
+            if (event.data === 0 && autoplayRef.current) {
+              clearInterval(pollInterval);
+              const n = indexRef.current + 1;
+              if (n < resultsRef.current.length) {
+                openVideo(resultsRef.current[n], n);
+              }
+            }
+          },
+        },
+      });
+    };
+
+    if (window.YT && window.YT.Player) {
+      initPlayer();
+    } else {
+      window.onYouTubeIframeAPIReady = initPlayer;
+    }
+
+    return () => {
+      clearInterval(pollInterval);
+      if (playerRef.current) {
+        try {
+          playerRef.current.destroy();
+        } catch (e) {}
+        playerRef.current = null;
+      }
+    };
+  }, [selectedVideo]);
+
+  // ✅ Handle reload event from navbar
   useEffect(() => {
     const handleReload = () => {
-      setSelectedVideo(null); // ← closes playing video
-      setSelectedVideoIndex(null); // ← resets index
-      searchWithQuery(CATEGORIES[activeCategory].query, true); // ← force refresh
+      setSelectedVideo(null);
+      setSelectedVideoIndex(null);
+      searchWithQuery(CATEGORIES[activeCategory].query, true);
     };
     window.addEventListener("youtube-reload", handleReload);
     return () => window.removeEventListener("youtube-reload", handleReload);
   }, [activeCategory]);
 
+  // ✅ Handle search from URL / navigation
   useEffect(() => {
-  const hashSearch = window.location.hash.includes("?")
-    ? window.location.hash.split("?")[1]
-    : "";
-  const params = new URLSearchParams(hashSearch || location.search);
-  const searchFromNav = params.get("search") || params.get("q");
+    const hashSearch = window.location.hash.includes("?")
+      ? window.location.hash.split("?")[1]
+      : "";
+    const params = new URLSearchParams(hashSearch || location.search);
+    const searchFromNav = params.get("search") || params.get("q");
 
-  if (searchFromNav) {
-    setSelectedVideo(null);         // ← close any playing video
-    setSelectedVideoIndex(null);
-    searchWithQuery(searchFromNav, true);
-  } else {
-    searchWithQuery(CATEGORIES[activeCategory].query, true);
-  }
-}, [location.hash, location.search, location.pathname, location.state]); // ← add location.hash
+    if (searchFromNav) {
+      setSelectedVideo(null);
+      setSelectedVideoIndex(null);
+      searchWithQuery(searchFromNav, true);
+    } else {
+      searchWithQuery(CATEGORIES[activeCategory].query, true);
+    }
+  }, [location.hash, location.search, location.pathname, location.state]);
 
   const searchWithQuery = async (q, forceRefresh = false) => {
     if (cache[q] && !forceRefresh) {
@@ -207,10 +285,22 @@ const YouTubeSearch = () => {
     setSelectedVideoIndex(index);
     setLiked(false);
     setDisliked(false);
-    setSubscribed(false);
     setComment("");
     setShowFullDesc(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // ✅ Subscribe per channel
+  const handleSubscribe = (channelTitle) => {
+    setSubscribedChannels((prev) => {
+      const next = new Set(prev);
+      if (next.has(channelTitle)) {
+        next.delete(channelTitle);
+      } else {
+        next.add(channelTitle);
+      }
+      return next;
+    });
   };
 
   const scrollChips = (dir) => {
@@ -346,6 +436,7 @@ const YouTubeSearch = () => {
         >
           {/* LEFT */}
           <div style={{ flex: "1 1 0", minWidth: 0, width: "100%" }}>
+            {/* ✅ YT Player mounts here */}
             <div
               style={{
                 borderRadius: "12px",
@@ -353,16 +444,15 @@ const YouTubeSearch = () => {
                 background: "#000",
               }}
             >
-              <iframe
-                key={selectedVideo}
-                width="100%"
-                height={window.innerWidth < 768 ? "220" : "500"}
-                src={`https://www.youtube.com/embed/${selectedVideo}?autoplay=1&enablejsapi=1&origin=${window.location.origin}`}
-                allow="autoplay; fullscreen"
-                allowFullScreen
-                style={{ display: "block", border: "none" }}
-                title="YouTube Player"
-              />
+              <div
+                id="yt-player-container"
+                style={{
+                  width: "100%",
+                  height: window.innerWidth < 768 ? "220px" : "500px",
+                }}
+              >
+                <div id="yt-player" />
+              </div>
             </div>
 
             {/* Prev / Autoplay / Next */}
@@ -395,14 +485,6 @@ const YouTubeSearch = () => {
                   cursor: selectedVideoIndex === 0 ? "not-allowed" : "pointer",
                   fontSize: "14px",
                   fontWeight: "600",
-                }}
-                onMouseEnter={(e) => {
-                  if (selectedVideoIndex !== 0)
-                    e.currentTarget.style.background = "#3a3a3a";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background =
-                    selectedVideoIndex === 0 ? "#2a2a2a" : "#272727";
                 }}
               >
                 ⏮ Previous
@@ -483,16 +565,6 @@ const YouTubeSearch = () => {
                   fontSize: "14px",
                   fontWeight: "600",
                 }}
-                onMouseEnter={(e) => {
-                  if (selectedVideoIndex !== results.length - 1)
-                    e.currentTarget.style.background = "#cc0000";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background =
-                    selectedVideoIndex === results.length - 1
-                      ? "#2a2a2a"
-                      : "#ff0000";
-                }}
               >
                 Next ⏭
               </button>
@@ -552,11 +624,23 @@ const YouTubeSearch = () => {
                         1.2M subscribers
                       </div>
                     </div>
+
+                    {/* ✅ Per-channel subscribe button */}
                     <button
-                      onClick={() => setSubscribed(!subscribed)}
+                      onClick={() =>
+                        handleSubscribe(currentItem.snippet.channelTitle)
+                      }
                       style={{
-                        background: subscribed ? "#272727" : "white",
-                        color: subscribed ? "white" : "black",
+                        background: subscribedChannels.has(
+                          currentItem.snippet.channelTitle,
+                        )
+                          ? "#272727"
+                          : "white",
+                        color: subscribedChannels.has(
+                          currentItem.snippet.channelTitle,
+                        )
+                          ? "white"
+                          : "black",
                         border: "none",
                         borderRadius: "20px",
                         padding: "8px 18px",
@@ -566,9 +650,12 @@ const YouTubeSearch = () => {
                         marginLeft: "8px",
                       }}
                     >
-                      {subscribed ? "✓ Subscribed" : "Subscribe"}
+                      {subscribedChannels.has(currentItem.snippet.channelTitle)
+                        ? "✓ Subscribed"
+                        : "Subscribe"}
                     </button>
                   </div>
+
                   <div
                     style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}
                   >
@@ -653,6 +740,7 @@ const YouTubeSearch = () => {
                   </div>
                 </div>
 
+                {/* Description */}
                 <div
                   style={{
                     background: "#272727",
@@ -706,6 +794,7 @@ const YouTubeSearch = () => {
                   </span>
                 </div>
 
+                {/* Comments */}
                 <div style={{ marginTop: "28px" }}>
                   <div
                     style={{
@@ -819,6 +908,7 @@ const YouTubeSearch = () => {
                       )}
                     </div>
                   </div>
+
                   {comments.map((c) => (
                     <div
                       key={c.id}
@@ -960,6 +1050,7 @@ const YouTubeSearch = () => {
                 />
               </div>
             </div>
+
             <div
               style={{ display: "flex", flexDirection: "column", gap: "8px" }}
             >
@@ -1212,11 +1303,11 @@ const YouTubeSearch = () => {
       )}
 
       <style>{`
-          @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-          ::-webkit-scrollbar { height: 4px; width: 4px; }
-          ::-webkit-scrollbar-track { background: transparent; }
-          ::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
-        `}</style>
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        ::-webkit-scrollbar { height: 4px; width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
+      `}</style>
     </div>
   );
 };

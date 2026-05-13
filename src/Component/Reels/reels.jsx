@@ -564,6 +564,7 @@ const getVideoType = (src) => {
 // ✅ ReelItem — NO navigate here, it belongs in the thumbnail list
 const ReelItem = ({ reel }) => {
   const videoRef = useRef(null);
+  const [subscribed, setSubscribed] = useState(false);
   const containerRef = useRef(null);
   const [liked, setLiked] = useState(false);
   const [muted, setMuted] = useState(false);
@@ -804,7 +805,19 @@ const ReelItem = ({ reel }) => {
             >
               <span className="reel_username">{reel.user}</span>
             </Link>
-            <button className="reel_subscribe_btn">Subscribe</button>
+            <button
+  className="reel_subscribe_btn"
+  onClick={(e) => {
+    e.preventDefault(); // prevent Link navigation
+    setSubscribed((prev) => !prev);
+  }}
+  style={{
+    background: subscribed ? "#555" : "#ff0000",
+    color: "white",
+  }}
+>
+  {subscribed ? "Subscribed" : "Subscribe"}
+</button>
           </div>
           <div className="reel_description">{reel.description}</div>
         </div>

@@ -540,14 +540,24 @@ const videos = [
 
 // ✅ Paste defaultComments HERE — after videos array, before Video component
 const defaultComments = [
-  { id: 1, user: "UserName", text: "This is the cool web App Project", date: "2024-09-30" },
-  { id: 2, user: "UserName", text: "This is the cool web App Project", date: "2024-09-30" },
+  {
+    id: 1,
+    user: "UserName",
+    text: "This is the cool web App Project",
+    date: "2024-09-30",
+  },
+  {
+    id: 2,
+    user: "UserName",
+    text: "This is the cool web App Project",
+    date: "2024-09-30",
+  },
 ];
 
 const Video = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-
+  const [subscribedChannels, setSubscribedChannels] = useState(new Set());
   const [message, setMessage] = useState("");
   const [autoPlay, setAutoPlay] = useState(true);
   const [showControls, setShowControls] = useState(true);
@@ -571,6 +581,20 @@ const Video = () => {
   const video = videos[currentIndex];
   const nextVideo = videos[currentIndex + 1] || videos[0];
   const prevVideo = videos[currentIndex - 1] || videos[videos.length - 1];
+
+  const isSubscribed = subscribedChannels.has(video.channel);
+
+  const handleSubscribe = () => {
+    setSubscribedChannels((prev) => {
+      const next = new Set(prev);
+      if (next.has(video.channel)) {
+        next.delete(video.channel);
+      } else {
+        next.add(video.channel);
+      }
+      return next;
+    });
+  };
 
   const handleMouseMove = () => {
     setShowControls(true);
@@ -616,11 +640,11 @@ const Video = () => {
   const handleCommentSubmit = () => {
     if (!message.trim()) return;
     const newComment = {
-  id: Date.now(),
-  user: loggedInUser, // ✅ dynamic
-  text: message,
-  date: new Date().toISOString().slice(0, 10),
-};
+      id: Date.now(),
+      user: loggedInUser, // ✅ dynamic
+      text: message,
+      date: new Date().toISOString().slice(0, 10),
+    };
     setAllComments((prev) => ({
       ...prev,
       [id]: [newComment, ...(prev[id] ?? defaultComments)],
@@ -807,7 +831,17 @@ const Video = () => {
                 </Link>
                 <div className="youtubePostProfileSubs">2024-07-09</div>
               </div>
-              <div className="subscribeBtnYoutube">Subscribe</div>
+              <div
+                className="subscribeBtnYoutube"
+                onClick={handleSubscribe}
+                style={{
+                  background: isSubscribed ? "#555" : "#ff0000",
+                  cursor: "pointer",
+                  color: "white",
+                }}
+              >
+                {isSubscribed ? "Subscribed" : "Subscribe"}
+              </div>
             </div>
           </div>
 

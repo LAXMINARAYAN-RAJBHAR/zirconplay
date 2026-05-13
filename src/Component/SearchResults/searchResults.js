@@ -13,12 +13,8 @@ const API_KEYS = [
 
 let currentKeyIndex = 0;
 
-// ── Helper: extract ?q= from HashRouter URL ──────────────────────────────────
-// HashRouter stores the full path inside window.location.hash
-// e.g.  https://example.com/#/search?q=hindi%20movie
-// location.search is always "" — we must parse the hash manually.
 const getQueryFromHash = () => {
-  const hash = window.location.hash; // "#/search?q=hindi%20movie"
+  const hash = window.location.hash;
   const qIndex = hash.indexOf("?");
   if (qIndex === -1) return "";
   const params = new URLSearchParams(hash.slice(qIndex + 1));
@@ -28,58 +24,124 @@ const getQueryFromHash = () => {
 const SearchResults = () => {
   const location = useLocation();
 
-  const [query, setQuery]                   = useState("");
-  const [youtubeResults, setYoutubeResults] = useState([]);
-  const [postResults, setPostResults]       = useState([]);
-  const [loading, setLoading]               = useState(false);
-  const [activeTab, setActiveTab]           = useState("all"); // "all" | "videos" | "posts"
+  const [query, setQuery]                     = useState("");
+  const [youtubeResults, setYoutubeResults]   = useState([]);
+  const [postResults, setPostResults]         = useState([]);
+  const [loading, setLoading]                 = useState(false);
+  const [activeTab, setActiveTab]             = useState("all");
 
-  const [selectedVideo, setSelectedVideo]         = useState(null);
+  const [selectedVideo, setSelectedVideo]           = useState(null);
   const [selectedVideoIndex, setSelectedVideoIndex] = useState(null);
-  const [autoplay, setAutoplay]   = useState(true);
-  const [liked, setLiked]         = useState(false);
-  const [disliked, setDisliked]   = useState(false);
-  const [subscribed, setSubscribed] = useState(false);
-  const [comment, setComment]     = useState("");
+  const [autoplay, setAutoplay]     = useState(true);
+  const [liked, setLiked]           = useState(false);
+  const [disliked, setDisliked]     = useState(false);
+  const [subscribedChannels, setSubscribedChannels] = useState(new Set());
+  const [comment, setComment]       = useState("");
   const [showFullDesc, setShowFullDesc] = useState(false);
-  const [comments, setComments]   = useState([
-    { id: 1, user: "Rahul", text: "Amazing video! 🔥",       time: "2 days ago",  likes: 24 },
-    { id: 2, user: "Priya", text: "Loved this content!",      time: "1 day ago",   likes: 12 },
+  const [comments, setComments]     = useState([
+    { id: 1, user: "Rahul", text: "Amazing video! 🔥",        time: "2 days ago",  likes: 24 },
+    { id: 2, user: "Priya", text: "Loved this content!",       time: "1 day ago",   likes: 12 },
     { id: 3, user: "Amit",  text: "Very informative, thanks!", time: "5 hours ago", likes: 5  },
   ]);
 
-  const autoplayRef = useRef(autoplay);
-  useEffect(() => { autoplayRef.current = autoplay; }, [autoplay]);
+  // ✅ All refs
+  const autoplayRef  = useRef(autoplay);
+  const playerRef    = useRef(null);
+  const resultsRef   = useRef(youtubeResults);
+  const indexRef     = useRef(selectedVideoIndex);
 
-  // ── Autoplay via YouTube postMessage ────────────────────────────────────────
+  // ✅ Keep refs in sync
+  useEffect(() => { autoplayRef.current = autoplay; }, [autoplay]);
+  useEffect(() => { resultsRef.current = youtubeResults; }, [youtubeResults]);
+  useEffect(() => { indexRef.current = selectedVideoIndex; }, [selectedVideoIndex]);
+
+  // ✅ Load YouTube IFrame API script once
+  useEffect(() => {
+    if (!window.YT) {
+      const tag = document.createElement("script");
+      tag.src = "https://www.youtube.com/iframe_api";
+      document.body.appendChild(tag);
+    }
+  }, []);
+
+  // ✅ Init/reinit YT Player with polling whenever selectedVideo changes
   useEffect(() => {
     if (!selectedVideo) return;
-    const handleMessage = (event) => {
-      if (event.origin !== "https://www.youtube.com") return;
-      try {
-        const data = JSON.parse(event.data);
-        if (data.event === "onStateChange" && data.info === 0) {
-          if (!autoplayRef.current) return;
-          const n = selectedVideoIndex + 1;
-          if (n < youtubeResults.length) {
-            setSelectedVideo(youtubeResults[n].id.videoId);
-            setSelectedVideoIndex(n);
-            setLiked(false); setDisliked(false); setShowFullDesc(false);
-          }
-        }
-      } catch (e) {}
-    };
-    window.addEventListener("message", handleMessage);
-    return () => window.removeEventListener("message", handleMessage);
-  }, [selectedVideo, selectedVideoIndex, youtubeResults]);
 
-  // ── MAIN EFFECT: re-run on every hash change ─────────────────────────────────
-  // KEY FIX: depend on location.key (changes on every navigate()) 
-  // AND location.hash so both trigger correctly with HashRouter.
+    let pollInterval = null;
+
+    const initPlayer = () => {
+      if (playerRef.current) {
+        try { playerRef.current.destroy(); } catch (e) {}
+        playerRef.current = null;
+      }
+
+      // Recreate fresh mount point
+      const container = document.getElementById("yt-player-container");
+      if (container) {
+        container.innerHTML = "";
+        const div = document.createElement("div");
+        div.id = "yt-player";
+        container.appendChild(div);
+      }
+
+      playerRef.current = new window.YT.Player("yt-player", {
+        height: window.innerWidth < 768 ? "220" : "500",
+        width: "100%",
+        videoId: selectedVideo,
+        playerVars: { autoplay: 1, rel: 0, enablejsapi: 1 },
+        events: {
+          onReady: () => {
+            // ✅ Polling — checks every second if video ended
+            pollInterval = setInterval(() => {
+              if (!playerRef.current) return;
+              try {
+                const state = playerRef.current.getPlayerState();
+                if (state === 0 && autoplayRef.current) {
+                  clearInterval(pollInterval);
+                  const currentResults = resultsRef.current;
+                  const currentIndex   = indexRef.current;
+                  const n = currentIndex + 1;
+                  if (n < currentResults.length) {
+                    openVideo(currentResults[n], n);
+                  }
+                }
+              } catch (e) {}
+            }, 1000);
+          },
+          // ✅ Backup — works in some browsers
+          onStateChange: (event) => {
+            if (event.data === 0 && autoplayRef.current) {
+              clearInterval(pollInterval);
+              const n = indexRef.current + 1;
+              if (n < resultsRef.current.length) {
+                openVideo(resultsRef.current[n], n);
+              }
+            }
+          },
+        },
+      });
+    };
+
+    if (window.YT && window.YT.Player) {
+      initPlayer();
+    } else {
+      window.onYouTubeIframeAPIReady = initPlayer;
+    }
+
+    return () => {
+      clearInterval(pollInterval);
+      if (playerRef.current) {
+        try { playerRef.current.destroy(); } catch (e) {}
+        playerRef.current = null;
+      }
+    };
+  }, [selectedVideo]);
+
+  // ✅ Re-run on every hash/location change
   useEffect(() => {
     const q = getQueryFromHash();
     if (!q) return;
-
     setQuery(q);
     setSelectedVideo(null);
     setSelectedVideoIndex(null);
@@ -87,7 +149,6 @@ const SearchResults = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.key, location.hash]);
 
-  // ── Fetch both sources in parallel ──────────────────────────────────────────
   const fetchAll = async (q) => {
     setLoading(true);
     setYoutubeResults([]);
@@ -101,14 +162,7 @@ const SearchResults = () => {
       const keyIndex = (currentKeyIndex + i) % API_KEYS.length;
       try {
         const res = await axios.get("https://www.googleapis.com/youtube/v3/search", {
-          params: {
-            part: "snippet",
-            q,
-            type: "video",
-            maxResults: 50,
-            order: "relevance",
-            key: API_KEYS[keyIndex],
-          },
+          params: { part: "snippet", q, type: "video", maxResults: 50, order: "relevance", key: API_KEYS[keyIndex] },
         });
         currentKeyIndex = keyIndex;
         setYoutubeResults(res.data.items || []);
@@ -130,13 +184,23 @@ const SearchResults = () => {
     }
   };
 
-  // ── Video player helpers ─────────────────────────────────────────────────────
   const openVideo = (item, index) => {
     setSelectedVideo(item.id.videoId);
     setSelectedVideoIndex(index);
-    setLiked(false); setDisliked(false); setSubscribed(false);
-    setComment(""); setShowFullDesc(false);
+    setLiked(false);
+    setDisliked(false);
+    setComment("");
+    setShowFullDesc(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // ✅ Per-channel subscribe
+  const handleSubscribe = (channelTitle) => {
+    setSubscribedChannels((prev) => {
+      const next = new Set(prev);
+      next.has(channelTitle) ? next.delete(channelTitle) : next.add(channelTitle);
+      return next;
+    });
   };
 
   const goNext = () => {
@@ -151,24 +215,18 @@ const SearchResults = () => {
 
   const currentItem   = selectedVideo ? youtubeResults[selectedVideoIndex] : null;
   const relatedVideos = selectedVideo ? youtubeResults.filter((_, i) => i !== selectedVideoIndex) : [];
-
-  // ── Filtered results for tabs ────────────────────────────────────────────────
-  const showVideos = activeTab === "all" || activeTab === "videos";
-  const showPosts  = activeTab === "all" || activeTab === "posts";
-
-  const isMobile = window.innerWidth < 768;
+  const showVideos    = activeTab === "all" || activeTab === "videos";
+  const showPosts     = activeTab === "all" || activeTab === "posts";
+  const isMobile      = window.innerWidth < 768;
 
   return (
-    <div style={{
-      background: "#0f0f0f", minHeight: "100vh", paddingTop: "70px",
-      fontFamily: "Roboto, Arial, sans-serif", color: "white",
-    }}>
+    <div style={{ background: "#0f0f0f", minHeight: "100vh", paddingTop: "70px", fontFamily: "Roboto, Arial, sans-serif", color: "white" }}>
 
       {/* ── LOADING SKELETONS ── */}
       {loading && (
         <div style={{ padding: "20px" }}>
           <div style={{ color: "#aaa", fontSize: "14px", marginBottom: "16px", textAlign: "center" }}>
-            🔍 Searching YouTube + Local for "<strong style={{ color: "white" }}>{query}</strong>"...
+            🔍 Searching for "<strong style={{ color: "white" }}>{query}</strong>"...
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "16px" }}>
             {[...Array(12)].map((_, i) => (
@@ -191,23 +249,19 @@ const SearchResults = () => {
         <>
           {/* ── WATCH PAGE ── */}
           {selectedVideo ? (
-            <div style={{
-              display: "flex", gap: "24px", padding: "20px 24px",
-              maxWidth: "1600px", margin: "0 auto", flexWrap: "wrap",
-            }}>
+            <div style={{ display: "flex", gap: "24px", padding: "20px 24px", maxWidth: "1600px", margin: "0 auto", flexWrap: "wrap" }}>
+
               {/* LEFT: Player */}
               <div style={{ flex: "1 1 0", minWidth: 0, width: "100%" }}>
+
+                {/* ✅ YT Player container */}
                 <div style={{ borderRadius: "12px", overflow: "hidden", background: "#000" }}>
-                  <iframe
-                    key={selectedVideo}
-                    width="100%"
-                    height={isMobile ? "220" : "500"}
-                    src={`https://www.youtube.com/embed/${selectedVideo}?autoplay=1&enablejsapi=1&origin=${window.location.origin}`}
-                    allow="autoplay; fullscreen"
-                    allowFullScreen
-                    style={{ display: "block", border: "none" }}
-                    title="YouTube Player"
-                  />
+                  <div
+                    id="yt-player-container"
+                    style={{ width: "100%", height: isMobile ? "220px" : "500px" }}
+                  >
+                    <div id="yt-player" />
+                  </div>
                 </div>
 
                 {/* Prev / Autoplay / Next */}
@@ -248,9 +302,12 @@ const SearchResults = () => {
                           <div style={{ color: "white", fontWeight: "600", fontSize: "15px" }}>{currentItem.snippet.channelTitle}</div>
                           <div style={{ color: "#aaa", fontSize: "12px" }}>1.2M subscribers</div>
                         </div>
-                        <button onClick={() => setSubscribed(!subscribed)}
-                          style={{ background: subscribed ? "#272727" : "white", color: subscribed ? "white" : "black", border: "none", borderRadius: "20px", padding: "8px 18px", fontWeight: "700", cursor: "pointer", fontSize: "14px", marginLeft: "8px" }}>
-                          {subscribed ? "✓ Subscribed" : "Subscribe"}
+                        {/* ✅ Per-channel subscribe */}
+                        <button
+                          onClick={() => handleSubscribe(currentItem.snippet.channelTitle)}
+                          style={{ background: subscribedChannels.has(currentItem.snippet.channelTitle) ? "#272727" : "white", color: subscribedChannels.has(currentItem.snippet.channelTitle) ? "white" : "black", border: "none", borderRadius: "20px", padding: "8px 18px", fontWeight: "700", cursor: "pointer", fontSize: "14px", marginLeft: "8px" }}
+                        >
+                          {subscribedChannels.has(currentItem.snippet.channelTitle) ? "✓ Subscribed" : "Subscribe"}
                         </button>
                       </div>
 
@@ -272,6 +329,7 @@ const SearchResults = () => {
                       </div>
                     </div>
 
+                    {/* Description */}
                     <div style={{ background: "#272727", borderRadius: "12px", padding: "14px 16px", marginTop: "14px", color: "#ccc", fontSize: "14px", lineHeight: "1.6", cursor: "pointer" }}
                       onClick={() => setShowFullDesc(!showFullDesc)}>
                       <div style={{ color: "#aaa", fontSize: "13px", marginBottom: "6px" }}>
@@ -329,12 +387,7 @@ const SearchResults = () => {
               </div>
 
               {/* RIGHT: Related sidebar */}
-              <div style={{
-                width: isMobile ? "100%" : "402px", flexShrink: 0,
-                position: isMobile ? "relative" : "sticky", top: "70px",
-                height: isMobile ? "auto" : "calc(100vh - 90px)",
-                overflowY: "auto", scrollbarWidth: "thin", scrollbarColor: "#555 transparent",
-              }}>
+              <div style={{ width: isMobile ? "100%" : "402px", flexShrink: 0, position: isMobile ? "relative" : "sticky", top: "70px", height: isMobile ? "auto" : "calc(100vh - 90px)", overflowY: "auto", scrollbarWidth: "thin", scrollbarColor: "#555 transparent" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "8px", marginBottom: "12px" }}>
                   <span style={{ color: "#aaa", fontSize: "13px" }}>Autoplay</span>
                   <div onClick={() => setAutoplay(!autoplay)}
@@ -373,8 +426,6 @@ const SearchResults = () => {
           ) : (
             /* ── SEARCH RESULTS GRID ── */
             <div style={{ padding: "20px" }}>
-
-              {/* Header */}
               <div style={{ marginBottom: "20px" }}>
                 <div style={{ fontSize: "15px", color: "#aaa", marginBottom: "14px" }}>
                   Results for <strong style={{ color: "white" }}>"{query}"</strong>
@@ -385,18 +436,11 @@ const SearchResults = () => {
                   )}
                 </div>
 
-                {/* Tabs — only show if both have results */}
                 {youtubeResults.length > 0 && postResults.length > 0 && (
                   <div style={{ display: "flex", gap: "8px" }}>
                     {["all", "videos", "posts"].map(tab => (
                       <button key={tab} onClick={() => setActiveTab(tab)}
-                        style={{
-                          padding: "6px 16px", borderRadius: "20px", border: "none", cursor: "pointer",
-                          fontSize: "13px", fontWeight: "600", textTransform: "capitalize",
-                          background: activeTab === tab ? "white" : "#272727",
-                          color: activeTab === tab ? "black" : "white",
-                          transition: "background 0.15s",
-                        }}>
+                        style={{ padding: "6px 16px", borderRadius: "20px", border: "none", cursor: "pointer", fontSize: "13px", fontWeight: "600", textTransform: "capitalize", background: activeTab === tab ? "white" : "#272727", color: activeTab === tab ? "black" : "white", transition: "background 0.15s" }}>
                         {tab === "all" ? "🔍 All" : tab === "videos" ? "▶ Videos" : "📱 Posts"}
                       </button>
                     ))}
@@ -404,7 +448,6 @@ const SearchResults = () => {
                 )}
               </div>
 
-              {/* Posts section */}
               {showPosts && postResults.length > 0 && (
                 <div style={{ marginBottom: "40px" }}>
                   <h2 style={{ fontSize: "15px", color: "#aaa", marginBottom: "12px", fontWeight: "600" }}>📱 Posts</h2>
@@ -413,10 +456,7 @@ const SearchResults = () => {
                       <div key={i} style={{ background: "#272727", borderRadius: "12px", overflow: "hidden", cursor: "pointer", transition: "transform 0.2s" }}
                         onMouseEnter={e => e.currentTarget.style.transform = "translateY(-2px)"}
                         onMouseLeave={e => e.currentTarget.style.transform = "translateY(0)"}>
-                        {post.image && (
-                          <img src={post.image} alt={post.title}
-                            style={{ width: "100%", aspectRatio: "16/9", objectFit: "cover" }} />
-                        )}
+                        {post.image && <img src={post.image} alt={post.title} style={{ width: "100%", aspectRatio: "16/9", objectFit: "cover" }} />}
                         <div style={{ padding: "12px" }}>
                           <div style={{ fontWeight: "600", fontSize: "14px", color: "white", marginBottom: "4px" }}>{post.title}</div>
                           <div style={{ color: "#aaa", fontSize: "12px" }}>{post.description}</div>
@@ -427,7 +467,6 @@ const SearchResults = () => {
                 </div>
               )}
 
-              {/* YouTube results */}
               {showVideos && youtubeResults.length > 0 && (
                 <div>
                   {postResults.length > 0 && showPosts && (
@@ -435,8 +474,7 @@ const SearchResults = () => {
                   )}
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "16px" }}>
                     {youtubeResults.map((item, index) => (
-                      <div key={item.id.videoId} onClick={() => openVideo(item, index)}
-                        style={{ cursor: "pointer" }}
+                      <div key={item.id.videoId} onClick={() => openVideo(item, index)} style={{ cursor: "pointer" }}
                         onMouseEnter={e => e.currentTarget.querySelector(".thumb").style.transform = "scale(1.03)"}
                         onMouseLeave={e => e.currentTarget.querySelector(".thumb").style.transform = "scale(1)"}>
                         <div style={{ borderRadius: "12px", overflow: "hidden" }}>
@@ -462,7 +500,6 @@ const SearchResults = () => {
                 </div>
               )}
 
-              {/* No results */}
               {youtubeResults.length === 0 && postResults.length === 0 && (
                 <div style={{ textAlign: "center", marginTop: "80px" }}>
                   <div style={{ fontSize: "48px", marginBottom: "16px" }}>🔍</div>
