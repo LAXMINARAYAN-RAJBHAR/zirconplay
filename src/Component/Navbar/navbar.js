@@ -286,21 +286,56 @@ const Navbar = ({
                 setSuggestions([]);
                 setShowDropdown(false);
               }}
-              title="Clear"
+              title="Clear search"
               style={{
                 position: "absolute",
-                right: "56px",
+                right: "64px",
                 top: "50%",
                 transform: "translateY(-50%)",
                 cursor: "pointer",
-                color: "#aaa",
-                fontSize: "18px",
-                fontWeight: "bold",
-                lineHeight: 1,
-                padding: "4px",
+                width: "22px",
+                height: "22px",
+                borderRadius: "50%",
+                background: "#444",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "background 0.2s, transform 0.15s",
+                flexShrink: 0,
+                animation: "fadeInScale 0.15s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "#666";
+                e.currentTarget.style.transform =
+                  "translateY(-50%) scale(1.15)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "#444";
+                e.currentTarget.style.transform = "translateY(-50%) scale(1)";
+              }}
+              onMouseDown={(e) => {
+                // keep the original handler too
+                e.preventDefault();
+                setSearchQuery("");
+                setSuggestions([]);
+                setShowDropdown(false);
               }}
             >
-              ✕
+              {/* SVG × is crisper than the ✕ character */}
+              <svg
+                width="10"
+                height="10"
+                viewBox="0 0 10 10"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M1 1L9 9M9 1L1 9"
+                  stroke="white"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                />
+              </svg>
             </div>
           )}
 
@@ -389,7 +424,7 @@ const Navbar = ({
             <path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z" />
           </svg>
         </span>
-                {/* Live TV Section */}
+        {/* Live TV Section */}
         {/* <Link to="/live-tv" style={{ textDecoration: "none" }}>
           <div style={{ position: "relative", display: "inline-block" }}>
             <span style={{ fontSize: "24px" }}>📺</span>

@@ -544,6 +544,8 @@ const SearchResults = () => {
   const [activeTab, setActiveTab] = useState("all");
   const [profileResults, setProfileResults] = useState([]);
   const [localVideoResults, setLocalVideoResults] = useState([]);
+  // ✅ FIX 1: reelResults state properly declared
+  const [reelResults, setReelResults] = useState([]);
 
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [selectedVideoIndex, setSelectedVideoIndex] = useState(null);
@@ -577,13 +579,11 @@ const SearchResults = () => {
     },
   ]);
 
-  // ✅ All refs
   const autoplayRef = useRef(autoplay);
   const playerRef = useRef(null);
   const resultsRef = useRef(youtubeResults);
   const indexRef = useRef(selectedVideoIndex);
 
-  // ✅ Keep refs in sync
   useEffect(() => {
     autoplayRef.current = autoplay;
   }, [autoplay]);
@@ -594,7 +594,7 @@ const SearchResults = () => {
     indexRef.current = selectedVideoIndex;
   }, [selectedVideoIndex]);
 
-  // ✅ Load YouTube IFrame API script once
+  // Load YouTube IFrame API script once
   useEffect(() => {
     if (!window.YT) {
       const tag = document.createElement("script");
@@ -603,7 +603,7 @@ const SearchResults = () => {
     }
   }, []);
 
-  // ✅ Init/reinit YT Player with polling whenever selectedVideo changes
+  // Init/reinit YT Player whenever selectedVideo changes
   useEffect(() => {
     if (!selectedVideo) return;
 
@@ -617,7 +617,6 @@ const SearchResults = () => {
         playerRef.current = null;
       }
 
-      // Recreate fresh mount point
       const container = document.getElementById("yt-player-container");
       if (container) {
         container.innerHTML = "";
@@ -633,24 +632,20 @@ const SearchResults = () => {
         playerVars: { autoplay: 1, rel: 0, enablejsapi: 1 },
         events: {
           onReady: () => {
-            // ✅ Polling — checks every second if video ended
             pollInterval = setInterval(() => {
               if (!playerRef.current) return;
               try {
                 const state = playerRef.current.getPlayerState();
                 if (state === 0 && autoplayRef.current) {
                   clearInterval(pollInterval);
-                  const currentResults = resultsRef.current;
-                  const currentIndex = indexRef.current;
-                  const n = currentIndex + 1;
-                  if (n < currentResults.length) {
-                    openVideo(currentResults[n], n);
+                  const n = indexRef.current + 1;
+                  if (n < resultsRef.current.length) {
+                    openVideo(resultsRef.current[n], n);
                   }
                 }
               } catch (e) {}
             }, 1000);
           },
-          // ✅ Backup — works in some browsers
           onStateChange: (event) => {
             if (event.data === 0 && autoplayRef.current) {
               clearInterval(pollInterval);
@@ -681,7 +676,7 @@ const SearchResults = () => {
     };
   }, [selectedVideo]);
 
-  // ✅ Re-run on every hash/location change
+  // Re-run on every hash/location change
   useEffect(() => {
     const q = getQueryFromHash();
     if (!q) return;
@@ -698,21 +693,36 @@ const SearchResults = () => {
     setPostResults([]);
     setProfileResults([]);
     setLocalVideoResults([]);
+    // ✅ FIX 2: reset reelResults on each new search
+    setReelResults([]);
 
-    // ✅ Search local profiles from reelsData
     const lowerQ = q.toLowerCase();
+
+    // Search profiles by user/username
     const matchedProfiles = reelsData.filter(
       (r) =>
         r.user.toLowerCase().includes(lowerQ) ||
         r.username.toLowerCase().includes(lowerQ),
     );
-    // Deduplicate by username
     const uniqueProfiles = [
       ...new Map(matchedProfiles.map((p) => [p.username, p])).values(),
     ];
     setProfileResults(uniqueProfiles);
 
-    // ✅ Search local videos by title or channel
+    // ✅ Search reels by caption, tags, description, or song
+    const matchedReels = reelsData.filter(
+      (r) =>
+        r.caption?.toLowerCase().includes(lowerQ) ||
+        r.tags?.some((tag) => tag.toLowerCase().includes(lowerQ)) ||
+        r.description?.toLowerCase().includes(lowerQ) ||
+        r.song?.toLowerCase().includes(lowerQ) ||
+        // ✅ Also match by user's name or username
+        r.user?.toLowerCase().includes(lowerQ) ||
+        r.username?.toLowerCase().includes(lowerQ),
+    );
+    setReelResults(matchedReels);
+
+    // Search local videos by title or channel
     const matchedVideos = localVideos.filter(
       (v) =>
         v.title.toLowerCase().includes(lowerQ) ||
@@ -777,7 +787,6 @@ const SearchResults = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // ✅ Per-channel subscribe
   const handleSubscribe = (channelTitle) => {
     setSubscribedChannels((prev) => {
       const next = new Set(prev);
@@ -805,6 +814,39 @@ const SearchResults = () => {
   const showVideos = activeTab === "all" || activeTab === "videos";
   const showPosts = activeTab === "all" || activeTab === "posts";
   const isMobile = window.innerWidth < 768;
+
+  // ✅ FIX 3: tab config — "reels" is now properly in the tabs array
+  const TAB_LIST = [
+    "all",
+    "profiles",
+    "reels",
+    "localVideos",
+    "videos",
+    "posts",
+  ];
+  const TAB_LABELS = {
+    all: "🔍 All",
+    profiles: "👤 Profiles",
+    reels: "🎞️ Reels",
+    localVideos: "🎬 Videos",
+    videos: "▶ YouTube",
+    posts: "📱 Posts",
+  };
+  const TAB_COUNTS = {
+    profiles: profileResults.length,
+    reels: reelResults.length,
+    localVideos: localVideoResults.length,
+    videos: youtubeResults.length,
+    posts: postResults.length,
+  };
+
+  const hasAnyResults =
+    youtubeResults.length > 0 ||
+    postResults.length > 0 ||
+    profileResults.length > 0 ||
+    localVideoResults.length > 0 ||
+    // ✅ FIX 4: reelResults included in hasAnyResults check
+    reelResults.length > 0;
 
   return (
     <div
@@ -905,7 +947,6 @@ const SearchResults = () => {
             >
               {/* LEFT: Player */}
               <div style={{ flex: "1 1 0", minWidth: 0, width: "100%" }}>
-                {/* ✅ YT Player container */}
                 <div
                   style={{
                     borderRadius: "12px",
@@ -1108,7 +1149,6 @@ const SearchResults = () => {
                             1.2M subscribers
                           </div>
                         </div>
-                        {/* ✅ Per-channel subscribe */}
                         <button
                           onClick={() =>
                             handleSubscribe(currentItem.snippet.channelTitle)
@@ -1637,6 +1677,7 @@ const SearchResults = () => {
           ) : (
             /* ── SEARCH RESULTS GRID ── */
             <div style={{ padding: "20px" }}>
+              {/* ✅ FIX 5: Results header and tab bar — clean, outside all sections */}
               <div style={{ marginBottom: "20px" }}>
                 <div
                   style={{
@@ -1645,66 +1686,6 @@ const SearchResults = () => {
                     marginBottom: "14px",
                   }}
                 >
-
-                  {/* ── PROFILES SECTION ── */}
-{(activeTab === "all" || activeTab === "profiles") && profileResults.length > 0 && (
-  <div style={{ marginBottom: "40px" }}>
-    <h2 style={{ fontSize: "15px", color: "#aaa", marginBottom: "16px", fontWeight: "600" }}>👤 Profiles</h2>
-    <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
-      {profileResults.map((profile) => (
-        <Link
-          key={profile.username}
-          to={`/user/${profile.username}`}
-          style={{ textDecoration: "none" }}
-        >
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", background: "#1a1a1a", borderRadius: "12px", padding: "16px 24px", cursor: "pointer", transition: "background 0.2s", minWidth: "120px" }}
-            onMouseEnter={e => e.currentTarget.style.background = "#272727"}
-            onMouseLeave={e => e.currentTarget.style.background = "#1a1a1a"}>
-            <img src={profile.profilePic} alt={profile.user}
-              style={{ width: "64px", height: "64px", borderRadius: "50%", objectFit: "cover", border: "2px solid #333" }} />
-            <div style={{ color: "white", fontWeight: "600", fontSize: "14px", textAlign: "center" }}>{profile.user}</div>
-            <div style={{ color: "#aaa", fontSize: "12px" }}>@{profile.username}</div>
-          </div>
-        </Link>
-      ))}
-    </div>
-  </div>
-)}
-
-{/* ── LOCAL VIDEOS SECTION ── */}
-{(activeTab === "all" || activeTab === "localVideos") && localVideoResults.length > 0 && (
-  <div style={{ marginBottom: "40px" }}>
-    <h2 style={{ fontSize: "15px", color: "#aaa", marginBottom: "12px", fontWeight: "600" }}>🎬 Videos</h2>
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "16px" }}>
-      {localVideoResults.map(video => (
-        <Link key={video.id} to={`/video/${video.id}`} style={{ textDecoration: "none" }}>
-          <div style={{ cursor: "pointer" }}
-            onMouseEnter={e => e.currentTarget.querySelector(".lthumb").style.transform = "scale(1.03)"}
-            onMouseLeave={e => e.currentTarget.querySelector(".lthumb").style.transform = "scale(1)"}>
-            <div style={{ borderRadius: "12px", overflow: "hidden", position: "relative" }}>
-              <img className="lthumb" src={video.thumbnail} alt={video.title}
-                style={{ width: "100%", aspectRatio: "16/9", objectFit: "cover", display: "block", transition: "transform 0.3s" }} />
-              <div style={{ position: "absolute", bottom: "6px", right: "8px", background: "rgba(0,0,0,0.8)", color: "white", fontSize: "12px", padding: "2px 6px", borderRadius: "4px" }}>
-                {video.duration}
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: "10px", padding: "10px 4px" }}>
-              <img src={`https://api.dicebear.com/7.x/initials/svg?seed=${video.channel}`} alt={video.channel}
-                style={{ width: "36px", height: "36px", borderRadius: "50%", flexShrink: 0 }} />
-              <div style={{ flex: 1 }}>
-                <div style={{ color: "white", fontWeight: "600", fontSize: "13px", lineHeight: "1.4", marginBottom: "4px", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                  {video.title}
-                </div>
-                <div style={{ color: "#aaa", fontSize: "12px" }}>{video.channel}</div>
-              </div>
-            </div>
-          </div>
-        </Link>
-      ))}
-    </div>
-  </div>
-)}
-
                   Results for{" "}
                   <strong style={{ color: "white" }}>"{query}"</strong>
                   {youtubeResults.length > 0 && (
@@ -1715,66 +1696,330 @@ const SearchResults = () => {
                         fontSize: "13px",
                       }}
                     >
-                      — {youtubeResults.length} videos
+                      — {youtubeResults.length} YouTube videos
                       {postResults.length > 0
                         ? `, ${postResults.length} posts`
                         : ""}
                     </span>
                   )}
                 </div>
-                
-                
-                {(youtubeResults.length > 0 ||
-                  profileResults.length > 0 ||
-                  localVideoResults.length > 0 ||
-                  postResults.length > 0) && (
+
+                {/* ✅ FIX 6: Tab bar — iterates TAB_LIST which now includes "reels" */}
+                {hasAnyResults && (
                   <div
                     style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}
                   >
-                    {["all", "profiles", "localVideos", "videos", "posts"].map(
-                      (tab) => {
-                        const labels = {
-                          all: "🔍 All",
-                          profiles: "👤 Profiles",
-                          localVideos: "🎬 Videos",
-                          videos: "▶ YouTube",
-                          posts: "📱 Posts",
-                        };
-                        const counts = {
-                          profiles: profileResults.length,
-                          localVideos: localVideoResults.length,
-                          videos: youtubeResults.length,
-                          posts: postResults.length,
-                        };
-                        if (tab !== "all" && counts[tab] === 0) return null;
-                        return (
-                          <button
-                            key={tab}
-                            onClick={() => setActiveTab(tab)}
-                            style={{
-                              padding: "6px 16px",
-                              borderRadius: "20px",
-                              border: "none",
-                              cursor: "pointer",
-                              fontSize: "13px",
-                              fontWeight: "600",
-                              background:
-                                activeTab === tab ? "white" : "#272727",
-                              color: activeTab === tab ? "black" : "white",
-                            }}
-                          >
-                            {labels[tab]}
-                            {tab !== "all" && counts[tab] > 0
-                              ? ` (${counts[tab]})`
-                              : ""}
-                          </button>
-                        );
-                      },
-                    )}
+                    {TAB_LIST.map((tab) => {
+                      if (tab !== "all" && TAB_COUNTS[tab] === 0) return null;
+                      return (
+                        <button
+                          key={tab}
+                          onClick={() => setActiveTab(tab)}
+                          style={{
+                            padding: "6px 16px",
+                            borderRadius: "20px",
+                            border: "none",
+                            cursor: "pointer",
+                            fontSize: "13px",
+                            fontWeight: "600",
+                            background: activeTab === tab ? "white" : "#272727",
+                            color: activeTab === tab ? "black" : "white",
+                          }}
+                        >
+                          {TAB_LABELS[tab]}
+                          {tab !== "all" && TAB_COUNTS[tab] > 0
+                            ? ` (${TAB_COUNTS[tab]})`
+                            : ""}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
 
+              {/* ── PROFILES SECTION ── */}
+              {(activeTab === "all" || activeTab === "profiles") &&
+                profileResults.length > 0 && (
+                  <div style={{ marginBottom: "40px" }}>
+                    <h2
+                      style={{
+                        fontSize: "15px",
+                        color: "#aaa",
+                        marginBottom: "16px",
+                        fontWeight: "600",
+                      }}
+                    >
+                      👤 Profiles
+                    </h2>
+                    <div
+                      style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}
+                    >
+                      {profileResults.map((profile) => (
+                        <Link
+                          key={profile.username}
+                          to={`/user/${profile.username}`}
+                          style={{ textDecoration: "none" }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              gap: "8px",
+                              background: "#1a1a1a",
+                              borderRadius: "12px",
+                              padding: "16px 24px",
+                              cursor: "pointer",
+                              transition: "background 0.2s",
+                              minWidth: "120px",
+                            }}
+                            onMouseEnter={(e) =>
+                              (e.currentTarget.style.background = "#272727")
+                            }
+                            onMouseLeave={(e) =>
+                              (e.currentTarget.style.background = "#1a1a1a")
+                            }
+                          >
+                            <img
+                              src={profile.profilePic}
+                              alt={profile.user}
+                              style={{
+                                width: "64px",
+                                height: "64px",
+                                borderRadius: "50%",
+                                objectFit: "cover",
+                                border: "2px solid #333",
+                              }}
+                            />
+                            <div
+                              style={{
+                                color: "white",
+                                fontWeight: "600",
+                                fontSize: "14px",
+                                textAlign: "center",
+                              }}
+                            >
+                              {profile.user}
+                            </div>
+                            <div style={{ color: "#aaa", fontSize: "12px" }}>
+                              @{profile.username}
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+              {/* ✅ FIX 7: REELS SECTION — properly placed at the top level of the results grid */}
+              {(activeTab === "all" || activeTab === "reels") &&
+                reelResults.length > 0 && (
+                  <div style={{ marginBottom: "40px" }}>
+                    <h2
+                      style={{
+                        fontSize: "15px",
+                        color: "#aaa",
+                        marginBottom: "12px",
+                        fontWeight: "600",
+                      }}
+                    >
+                      🎞️ Reels
+                    </h2>
+                    <div
+                      style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}
+                    >
+                      {reelResults.map((reel) => (
+                        <Link
+                          key={reel.id}
+                          to={`/reels/${reel.id}`}
+                          style={{ textDecoration: "none" }}
+                        >
+                          <div
+                            style={{
+                              width: "160px",
+                              borderRadius: "12px",
+                              overflow: "hidden",
+                              background: "#1a1a1a",
+                              cursor: "pointer",
+                            }}
+                            onMouseEnter={(e) =>
+                              (e.currentTarget.style.background = "#272727")
+                            }
+                            onMouseLeave={(e) =>
+                              (e.currentTarget.style.background = "#1a1a1a")
+                            }
+                          >
+                            <video
+                              src={reel.video}
+                              poster={reel.thumbnail}
+                              style={{
+                                width: "100%",
+                                height: "280px",
+                                objectFit: "cover",
+                                display: "block",
+                              }}
+                              muted
+                              playsInline
+                              onMouseEnter={(e) => e.target.play()}
+                              onMouseLeave={(e) => {
+                                e.target.pause();
+                                e.target.currentTime = 0;
+                              }}
+                            />
+                            <div style={{ padding: "8px" }}>
+                              <div
+                                style={{
+                                  color: "white",
+                                  fontSize: "12px",
+                                  fontWeight: "600",
+                                  overflow: "hidden",
+                                  display: "-webkit-box",
+                                  WebkitLineClamp: 2,
+                                  WebkitBoxOrient: "vertical",
+                                }}
+                              >
+                                {reel.caption}
+                              </div>
+                              <div
+                                style={{
+                                  color: "#aaa",
+                                  fontSize: "11px",
+                                  marginTop: "4px",
+                                }}
+                              >
+                                @{reel.username}
+                              </div>
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+              {/* ── LOCAL VIDEOS SECTION ── */}
+              {(activeTab === "all" || activeTab === "localVideos") &&
+                localVideoResults.length > 0 && (
+                  <div style={{ marginBottom: "40px" }}>
+                    <h2
+                      style={{
+                        fontSize: "15px",
+                        color: "#aaa",
+                        marginBottom: "12px",
+                        fontWeight: "600",
+                      }}
+                    >
+                      🎬 Videos
+                    </h2>
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns:
+                          "repeat(auto-fill, minmax(280px, 1fr))",
+                        gap: "16px",
+                      }}
+                    >
+                      {localVideoResults.map((video) => (
+                        <Link
+                          key={video.id}
+                          to={`/video/${video.id}`}
+                          style={{ textDecoration: "none" }}
+                        >
+                          <div
+                            style={{ cursor: "pointer" }}
+                            onMouseEnter={(e) =>
+                              (e.currentTarget.querySelector(
+                                ".lthumb",
+                              ).style.transform = "scale(1.03)")
+                            }
+                            onMouseLeave={(e) =>
+                              (e.currentTarget.querySelector(
+                                ".lthumb",
+                              ).style.transform = "scale(1)")
+                            }
+                          >
+                            <div
+                              style={{
+                                borderRadius: "12px",
+                                overflow: "hidden",
+                                position: "relative",
+                              }}
+                            >
+                              <img
+                                className="lthumb"
+                                src={video.thumbnail}
+                                alt={video.title}
+                                style={{
+                                  width: "100%",
+                                  aspectRatio: "16/9",
+                                  objectFit: "cover",
+                                  display: "block",
+                                  transition: "transform 0.3s",
+                                }}
+                              />
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  bottom: "6px",
+                                  right: "8px",
+                                  background: "rgba(0,0,0,0.8)",
+                                  color: "white",
+                                  fontSize: "12px",
+                                  padding: "2px 6px",
+                                  borderRadius: "4px",
+                                }}
+                              >
+                                {video.duration}
+                              </div>
+                            </div>
+                            <div
+                              style={{
+                                display: "flex",
+                                gap: "10px",
+                                padding: "10px 4px",
+                              }}
+                            >
+                              <img
+                                src={`https://api.dicebear.com/7.x/initials/svg?seed=${video.channel}`}
+                                alt={video.channel}
+                                style={{
+                                  width: "36px",
+                                  height: "36px",
+                                  borderRadius: "50%",
+                                  flexShrink: 0,
+                                }}
+                              />
+                              <div style={{ flex: 1 }}>
+                                <div
+                                  style={{
+                                    color: "white",
+                                    fontWeight: "600",
+                                    fontSize: "13px",
+                                    lineHeight: "1.4",
+                                    marginBottom: "4px",
+                                    display: "-webkit-box",
+                                    WebkitLineClamp: 2,
+                                    WebkitBoxOrient: "vertical",
+                                    overflow: "hidden",
+                                  }}
+                                >
+                                  {video.title}
+                                </div>
+                                <div
+                                  style={{ color: "#aaa", fontSize: "12px" }}
+                                >
+                                  {video.channel}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+              {/* ── POSTS SECTION ── */}
               {showPosts && postResults.length > 0 && (
                 <div style={{ marginBottom: "40px" }}>
                   <h2
@@ -1844,6 +2089,7 @@ const SearchResults = () => {
                 </div>
               )}
 
+              {/* ── YOUTUBE VIDEOS SECTION ── */}
               {showVideos && youtubeResults.length > 0 && (
                 <div>
                   {postResults.length > 0 && showPosts && (
@@ -1957,13 +2203,27 @@ const SearchResults = () => {
                 </div>
               )}
 
-              {youtubeResults.length === 0 && postResults.length === 0 && profileResults.length === 0 && localVideoResults.length === 0 && (
-  <div style={{ textAlign: "center", marginTop: "80px" }}>
-    <div style={{ fontSize: "48px", marginBottom: "16px" }}>🔍</div>
-    <p style={{ color: "#555", fontSize: "16px" }}>No results found for "<span style={{ color: "#aaa" }}>{query}</span>"</p>
-    <p style={{ color: "#444", fontSize: "13px", marginTop: "8px" }}>Try different keywords or check your spelling</p>
-  </div>
-)}
+              {/* ✅ FIX 8: No results — includes reelResults in the check */}
+              {!hasAnyResults && (
+                <div style={{ textAlign: "center", marginTop: "80px" }}>
+                  <div style={{ fontSize: "48px", marginBottom: "16px" }}>
+                    🔍
+                  </div>
+                  <p style={{ color: "#555", fontSize: "16px" }}>
+                    No results found for "
+                    <span style={{ color: "#aaa" }}>{query}</span>"
+                  </p>
+                  <p
+                    style={{
+                      color: "#444",
+                      fontSize: "13px",
+                      marginTop: "8px",
+                    }}
+                  >
+                    Try different keywords or check your spelling
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </>
