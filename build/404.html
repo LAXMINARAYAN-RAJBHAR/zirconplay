@@ -4,14 +4,12 @@
     <meta charset="utf-8">
     <title>ZixPlayer</title>
     <script>
-      var segmentCount = 1; // 1 because of the /zixplayer-frontend/ prefix
-      var l = window.location;
-      l.replace(
-        l.protocol + '//' + l.host + '/' +
-        l.pathname.split('/').slice(0, 1 + segmentCount).join('/') + '/?p=/' +
-        l.pathname.slice(1).split('/').slice(segmentCount).join('/').replace(/&/g, '~and~') +
-        (l.search ? '&q=' + l.search.slice(1).replace(/&/g, '~and~') : '') +
-        l.hash
+      // Redirect to index with hash
+      var path = window.location.pathname;
+      var repoName = '/zixplayer-frontend';
+      window.location.replace(
+        window.location.origin + repoName + '/#' + 
+        path.replace(repoName, '') + window.location.search
       );
     </script>
   </head>
