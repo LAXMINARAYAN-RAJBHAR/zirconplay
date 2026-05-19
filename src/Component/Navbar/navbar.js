@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import "./navbar.css";
 import ListIcon from "@mui/icons-material/List";
-import MyLogo from "../../assests/mylogo.png";
 import PublicIcon from "@mui/icons-material/Public";
 import SearchIcon from "@mui/icons-material/Search";
 import KeyboardVoiceIcon from "@mui/icons-material/KeyboardVoice";
@@ -124,7 +123,6 @@ const CATEGORY_LABELS = {
   default: null,
 };
 
-// Search history stored in memory (you can persist to localStorage if desired)
 let _searchHistory = [];
 
 const getSuggestions = (q) => {
@@ -315,14 +313,14 @@ const Navbar = ({
   const sideNavbarFunc = () => setSideNavbarFunc(!sideNavbar);
 
   const handleprofile = () => {
-  // ✅ Guard: only navigate if currentUser exists
-  if (currentUser) {
-    navigate(`/user/${currentUser}`);
-  } else {
-    setLogin(true); // open login if not logged in
-  }
-  setNavbarModal(false);
-};
+    // ✅ Fix: guard against undefined currentUser
+    if (currentUser) {
+      navigate(`/user/${currentUser}`);
+    } else {
+      setLogin(true);
+    }
+    setNavbarModal(false);
+  };
 
   const setLoginModal = () => setLogin(false);
 
@@ -339,7 +337,6 @@ const Navbar = ({
       setSuggestionData(getSuggestions(val));
       setShowDropdown(true);
     } else {
-      // Show history + trending when input is empty but focused
       setSuggestionData({
         items: [],
         category: null,
@@ -350,19 +347,22 @@ const Navbar = ({
     }
   };
 
+  // ✅ FIXED doSearch — works correctly with HashRouter
   const doSearch = (q) => {
-  if (!q.trim()) return;
-  addToHistory(q);
-  setShowDropdown(false);
-  setSearchBarActive(false);
-  setSearchQuery(q);
-  setIsSearchFocused(true);
-  // ✅ Fix: use state instead of query string for HashRouter
-  navigate(`/search`, { state: { query: q } });
-  setTimeout(() => setIsSearchFocused(false), 1500);
-};
+    if (!q.trim()) return;
+    addToHistory(q);
+    setShowDropdown(false);
+    setSearchBarActive(false);
+    setSearchQuery(q);
+    setIsSearchFocused(true);
+    // ✅ Use search object so location.search is populated in SearchResults
+    navigate({
+      pathname: "/search",
+      search: `?q=${encodeURIComponent(q)}`,
+    });
+    setTimeout(() => setIsSearchFocused(false), 1500);
+  };
 
-  // Flatten all items for keyboard navigation
   const allNavItems = [
     ...suggestionData.history.map((h) => ({ text: h, type: "history" })),
     ...suggestionData.items,
@@ -390,9 +390,7 @@ const Navbar = ({
       setShowDropdown(false);
       setSearchBarActive(false);
       inputRef.current?.blur();
-    }
-    // Arrow right: fill input with active suggestion but don't search
-    else if (e.key === "Tab" && activeIndex >= 0 && allNavItems[activeIndex]) {
+    } else if (e.key === "Tab" && activeIndex >= 0 && allNavItems[activeIndex]) {
       e.preventDefault();
       setSearchQuery(allNavItems[activeIndex].text);
       setSuggestionData(getSuggestions(allNavItems[activeIndex].text));
@@ -460,16 +458,9 @@ const Navbar = ({
     setIsListening(false);
   };
 
-  // Compute which flat-nav index maps to which section for styling
   const historyCount = suggestionData.history.length;
   const suggCount = suggestionData.items.length;
-  const getItemType = (flatIdx) => {
-    if (flatIdx < historyCount) return "history";
-    if (flatIdx < historyCount + suggCount) return "suggestion";
-    return "trending";
-  };
 
-  // ─── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="navbar">
       {/* ── LEFT ─────────────────────────────────────────────────────────── */}
@@ -478,7 +469,6 @@ const Navbar = ({
           <ListIcon sx={{ color: "white" }} />
         </div>
         <Link to="/" className="navbar-logo-link">
-        
           <svg
             width="42"
             height="42"
@@ -536,7 +526,6 @@ const Navbar = ({
         ref={dropdownRef}
         style={{ position: "relative" }}
       >
-        {/* Search box */}
         <div
           className="navbar_searchBox"
           style={{
@@ -609,8 +598,7 @@ const Navbar = ({
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = "#666";
-                e.currentTarget.style.transform =
-                  "translateY(-50%) scale(1.15)";
+                e.currentTarget.style.transform = "translateY(-50%) scale(1.15)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = "#444";
@@ -659,7 +647,7 @@ const Navbar = ({
           />
         </div>
 
-        {/* ── Advanced Suggestions Dropdown ──────────────────────────────── */}
+        {/* ── Suggestions Dropdown ── */}
         {showDropdown &&
           (suggestionData.history.length > 0 ||
             suggestionData.items.length > 0 ||
@@ -679,7 +667,6 @@ const Navbar = ({
                 borderTop: "none",
               }}
             >
-              {/* Category pill */}
               {suggestionData.category &&
                 CATEGORY_LABELS[suggestionData.category] && (
                   <div
@@ -712,7 +699,7 @@ const Navbar = ({
                   </div>
                 )}
 
-              {/* ── Recent searches ─────────────────────────────────────────── */}
+              {/* Recent searches */}
               {suggestionData.history.length > 0 && (
                 <>
                   <div
@@ -748,7 +735,6 @@ const Navbar = ({
                       >
                         <HistoryIcon sx={{ fontSize: "17px", color: "#555" }} />
                         <span>{h}</span>
-                        {/* Remove from history */}
                         <span
                           onMouseDown={(e) => {
                             e.stopPropagation();
@@ -785,7 +771,7 @@ const Navbar = ({
                 </>
               )}
 
-              {/* ── Context-aware suggestions ────────────────────────────────── */}
+              {/* Context-aware suggestions */}
               {suggestionData.items.length > 0 && (
                 <>
                   {!suggestionData.category && (
@@ -837,7 +823,7 @@ const Navbar = ({
                 </>
               )}
 
-              {/* ── Trending section ─────────────────────────────────────────── */}
+              {/* Trending section */}
               {suggestionData.trending.length > 0 && (
                 <>
                   <div
@@ -895,7 +881,7 @@ const Navbar = ({
                 </>
               )}
 
-              {/* ── Footer: search all categories ────────────────────────────── */}
+              {/* Footer */}
               {searchQuery.trim() && (
                 <>
                   <div style={{ height: "0.5px", background: "#2a2a2a" }} />
@@ -1150,50 +1136,51 @@ const Navbar = ({
         </div>
 
         {/* 👤 Profile */}
-        {/* 👤 Profile */}
-<img
-  onClick={() => setNavbarModal((prev) => !prev)}
-  src={userPic}
-  alt="User"
-  className="navbar-right-logo"
-  onError={(e) => {
-    // ✅ Fallback to a reliable default avatar if image fails
-    e.target.onerror = null;
-    e.target.src = "https://ui-avatars.com/api/?name=User&background=444&color=fff&size=40";
-  }}
-/>
+        <img
+          onClick={() => setNavbarModal((prev) => !prev)}
+          src={userPic}
+          alt="User"
+          className="navbar-right-logo"
+          onError={(e) => {
+            // ✅ Fix: fallback avatar if image fails to load
+            e.target.onerror = null;
+            e.target.src =
+              "https://ui-avatars.com/api/?name=User&background=444&color=fff&size=40";
+          }}
+        />
         {navbarModal && (
-  <div className="navbar-modal">
-    {/* ✅ Show username if logged in */}
-    {currentUser && (
-      <div className="navbar-modal-option" style={{ 
-        color: "#aaa", 
-        fontSize: "12px", 
-        cursor: "default",
-        borderBottom: "1px solid #333",
-        paddingBottom: "8px",
-        marginBottom: "4px"
-      }}>
-        @{currentUser}
-      </div>
-    )}
-    <div className="navbar-modal-option" onClick={handleprofile}>
-      Profile
-    </div>
-    <div
-      className="navbar-modal-option"
-      onClick={() => onclickOfPopUpOption("logout")}
-    >
-      Logout
-    </div>
-    <div
-      className="navbar-modal-option"
-      onClick={() => onclickOfPopUpOption("login")}
-    >
-      Login
-    </div>
-  </div>
-)}
+          <div className="navbar-modal">
+            {/* ✅ Fix: show username if logged in */}
+            {currentUser && (
+              <div
+                style={{
+                  padding: "10px 16px",
+                  color: "#aaa",
+                  fontSize: "12px",
+                  borderBottom: "1px solid #333",
+                  pointerEvents: "none",
+                }}
+              >
+                @{currentUser}
+              </div>
+            )}
+            <div className="navbar-modal-option" onClick={handleprofile}>
+              Profile
+            </div>
+            <div
+              className="navbar-modal-option"
+              onClick={() => onclickOfPopUpOption("logout")}
+            >
+              Logout
+            </div>
+            <div
+              className="navbar-modal-option"
+              onClick={() => onclickOfPopUpOption("login")}
+            >
+              Login
+            </div>
+          </div>
+        )}
       </div>
 
       {login && <Login setLoginModal={setLoginModal} />}
