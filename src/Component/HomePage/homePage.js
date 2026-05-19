@@ -1525,7 +1525,6 @@ const WatchPage = ({
   if (isMobile) {
     return (
       <>
-        /* ════ MOBILE ════ */
         <style>{`
   .hp-watch-root {
     position: fixed;
