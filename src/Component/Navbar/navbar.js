@@ -53,13 +53,16 @@ const useCountry = () => {
       // Final hardcoded fallback based on browser timezone
       try {
         const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        if (tz.includes("Calcutta") || tz.includes("Kolkata")) setCountryCode("IN");
+        if (tz.includes("Calcutta") || tz.includes("Kolkata"))
+          setCountryCode("IN");
         else if (tz.includes("America")) setCountryCode("US");
         else if (tz.includes("London")) setCountryCode("GB");
-        else if (tz.includes("Paris") || tz.includes("Berlin")) setCountryCode("EU");
+        else if (tz.includes("Paris") || tz.includes("Berlin"))
+          setCountryCode("EU");
         else if (tz.includes("Dubai")) setCountryCode("AE");
         else if (tz.includes("Tokyo")) setCountryCode("JP");
-        else if (tz.includes("Shanghai") || tz.includes("Beijing")) setCountryCode("CN");
+        else if (tz.includes("Shanghai") || tz.includes("Beijing"))
+          setCountryCode("CN");
         else if (tz.includes("Sydney")) setCountryCode("AU");
       } catch {
         setCountryCode("IN"); // absolute last resort
@@ -449,7 +452,11 @@ const Navbar = ({
       setShowDropdown(false);
       setSearchBarActive(false);
       inputRef.current?.blur();
-    } else if (e.key === "Tab" && activeIndex >= 0 && allNavItems[activeIndex]) {
+    } else if (
+      e.key === "Tab" &&
+      activeIndex >= 0 &&
+      allNavItems[activeIndex]
+    ) {
       e.preventDefault();
       setSearchQuery(allNavItems[activeIndex].text);
       setSuggestionData(getSuggestions(allNavItems[activeIndex].text));
@@ -529,13 +536,54 @@ const Navbar = ({
         </div>
         <Link to="/" className="navbar-logo-link">
           <svg
-  width="42"
+            width="42"
+            height="42"
+            viewBox="0 0 42 42"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <rect width="42" height="42" rx="8" fill="#ff0000" />
+            <text
+              x="50%"
+              y="44%"
+              dominantBaseline="middle"
+              textAnchor="middle"
+              fill="white"
+              fontSize="22"
+              fontWeight="bold"
+              fontFamily="Arial"
+            >
+              Z
+              <animate
+                attributeName="opacity"
+                values="1;0.2;1;0.5;1"
+                dur="2s"
+                repeatCount="indefinite"
+              />
+            </text>
+            <text
+              x="50%"
+              y="78%"
+              dominantBaseline="middle"
+              textAnchor="middle"
+              fill="rgba(255,255,255,0.85)"
+              fontSize="7"
+              fontWeight="400"
+              fontFamily="Arial"
+              letterSpacing="1.5"
+            >
+              ZIRCON
+            </text>
+          </svg>
+
+          {/* <svg
+  width="70"
   height="42"
-  viewBox="0 0 42 42"
+  viewBox="0 0 70 42"
   fill="none"
   xmlns="http://www.w3.org/2000/svg"
 >
-  <rect width="42" height="42" rx="8" fill="#ff0000" />
+  <rect width="70" height="42" rx="8" fill="#ff0000" />
   <text
     x="50%"
     y="44%"
@@ -563,14 +611,20 @@ const Navbar = ({
     fontSize="7"
     fontWeight="400"
     fontFamily="Arial"
-    letterSpacing="1.5"
+    letterSpacing="1"
   >
-    ZIRCON
+    ZIRCONPLAY
   </text>
-</svg>
+</svg> */}
 
           {/* ── Logo text + Country Badge (like YouTube's IN) ── */}
-          <div style={{ position: "relative", display: "inline-flex", alignItems: "flex-start" }}>
+          <div
+            style={{
+              position: "relative",
+              display: "inline-flex",
+              alignItems: "flex-start",
+            }}
+          >
             <span
               key={logoKey}
               className="logoText"
@@ -690,7 +744,8 @@ const Navbar = ({
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = "#666";
-                e.currentTarget.style.transform = "translateY(-50%) scale(1.15)";
+                e.currentTarget.style.transform =
+                  "translateY(-50%) scale(1.15)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = "#444";
