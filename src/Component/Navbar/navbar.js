@@ -568,7 +568,7 @@ const Navbar = ({
                 else window.location.href = base;
               }}
             >
-              {"ZixPlayer".split("").map((char, i) => (
+              {"Zircplay".split("").map((char, i) => (
                 <span
                   key={i}
                   className="logoChar"
