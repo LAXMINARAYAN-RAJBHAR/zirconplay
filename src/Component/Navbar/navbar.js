@@ -13,15 +13,62 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import Login from "../Login/login";
 import YouTubeIcon from "@mui/icons-material/YouTube";
 
-// ─── Country Code Hook ─────────────────────────────────────────────────────────
+// ─── Country Code Hook (with multiple fallbacks) ──────────────────────────────
 const useCountry = () => {
   const [countryCode, setCountryCode] = useState("");
+
   useEffect(() => {
-    fetch("https://ipapi.co/json/")
-      .then((res) => res.json())
-      .then((data) => setCountryCode(data.country_code))
-      .catch(() => setCountryCode(""));
+    const fetchCountry = async () => {
+      // Try multiple APIs in order until one works
+      const apis = [
+        {
+          url: "https://ipapi.co/json/",
+          parse: (d) => d.country_code,
+        },
+        {
+          url: "https://ipwho.is/",
+          parse: (d) => d.country_code,
+        },
+        {
+          url: "https://api.country.is/",
+          parse: (d) => d.country,
+        },
+      ];
+
+      for (const api of apis) {
+        try {
+          const res = await fetch(api.url);
+          if (!res.ok) continue;
+          const data = await res.json();
+          const code = api.parse(data);
+          if (code && code.length === 2) {
+            setCountryCode(code);
+            return; // success — stop trying
+          }
+        } catch {
+          // try next API
+        }
+      }
+
+      // Final hardcoded fallback based on browser timezone
+      try {
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (tz.includes("Calcutta") || tz.includes("Kolkata")) setCountryCode("IN");
+        else if (tz.includes("America")) setCountryCode("US");
+        else if (tz.includes("London")) setCountryCode("GB");
+        else if (tz.includes("Paris") || tz.includes("Berlin")) setCountryCode("EU");
+        else if (tz.includes("Dubai")) setCountryCode("AE");
+        else if (tz.includes("Tokyo")) setCountryCode("JP");
+        else if (tz.includes("Shanghai") || tz.includes("Beijing")) setCountryCode("CN");
+        else if (tz.includes("Sydney")) setCountryCode("AU");
+      } catch {
+        setCountryCode("IN"); // absolute last resort
+      }
+    };
+
+    fetchCountry();
   }, []);
+
   return countryCode;
 };
 
