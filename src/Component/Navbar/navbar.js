@@ -281,9 +281,9 @@ const Navbar = ({ currentUser, setSideNavbarFunc, sideNavbar, notifications, set
           style={{
             display: "flex",
             alignItems: "center",
-            gap: "8px",
+            gap: "2px",   /* ← was 8px, now 2px */
             textDecoration: "none",
-            padding: "5px 12px 5px 5px",
+            padding: "5px 5px 5px 5px",
             borderRadius: "12px",
             border: logoHovered
               ? "1.5px solid rgba(255, 0, 0, 0.6)"

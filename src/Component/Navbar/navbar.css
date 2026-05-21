@@ -75,7 +75,7 @@
 .navbar-logo-link {
   display: flex !important;
   align-items: center !important;
-  gap: 8px !important;
+  gap: 2px !important;  /* ← was 8px, now 2px */
   text-decoration: none !important;
 }
 
@@ -100,7 +100,6 @@
 @keyframes logoBounce {
   to { opacity: 1; transform: translateY(0); }
 }
-
 .navbar {
   display: flex;
   align-items: center;   /* vertically centers all sections */
