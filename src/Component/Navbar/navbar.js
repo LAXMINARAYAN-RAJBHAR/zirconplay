@@ -433,154 +433,48 @@ const Navbar = ({
     window.speechSynthesis.speak(utter);
   };
 
-  const startVoiceSearch = async () => {
+  const startVoiceSearch = () => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
-      alert("Voice search not supported. Please use Chrome or Edge.");
+      alert("Voice search not supported. Try Chrome.");
       return;
     }
-
-    // ✅ Step 1: Request system microphone permission explicitly
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      // Permission granted — stop the stream immediately, we just needed permission
-      stream.getTracks().forEach((track) => track.stop());
-    } catch (err) {
-      if (
-        err.name === "NotAllowedError" ||
-        err.name === "PermissionDeniedError"
-      ) {
-        alert(
-          "🎤 Microphone access denied!\n\n" +
-            "To fix this:\n" +
-            "1. Click the 🔒 lock icon in your browser address bar\n" +
-            "2. Set Microphone to 'Allow'\n" +
-            "3. Refresh the page and try again",
-        );
-        return;
-      }
-      if (err.name === "NotFoundError") {
-        alert(
-          "🎤 No microphone found!\n\n" +
-            "Please connect a microphone to your device and try again.",
-        );
-        return;
-      }
-      // Other errors — still try to proceed
-      console.warn("Mic permission warning:", err.message);
-    }
-
     setIsListening(true);
     let gotResult = false;
-    let silenceTimer = null;
-
-    // ✅ Step 2: Start speech recognition
-    const recognition = new SR();
-    recognitionRef.current = recognition;
-
-    recognition.lang = "en-IN";
-    recognition.interimResults = true; // ✅ show live results
-    recognition.maxAlternatives = 1;
-    recognition.continuous = false;
-
-    // ✅ Step 3: Speak prompt
-    const speakPrompt = () => {
-      if (window.speechSynthesis) {
-        const utter = new SpeechSynthesisUtterance("Please speak now");
-        utter.lang = "en-IN";
-        utter.rate = 1.1;
-        utter.volume = 0.7;
-        window.speechSynthesis.speak(utter);
-      }
-    };
-    speakPrompt();
-
-    // ✅ Step 4: Handle results
-    recognition.onresult = (event) => {
-      gotResult = true;
-      clearTimeout(silenceTimer);
-
-      let interimTranscript = "";
-      let finalTranscript = "";
-
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
-        if (event.results[i].isFinal) finalTranscript += transcript;
-        else interimTranscript += transcript;
-      }
-
-      // Update search box live with interim results
-      if (interimTranscript) setSearchQuery(interimTranscript);
-
-      // When final result comes — search immediately
-      if (finalTranscript) {
+    speak("Please speak now", () => {
+      const recognition = new SR();
+      recognitionRef.current = recognition;
+      recognition.lang = "en-IN";
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+      recognition.onresult = (event) => {
+        gotResult = true;
+        const transcript = event.results[0][0].transcript;
         recognition.stop();
         setIsListening(false);
-        doSearch(finalTranscript.trim());
-      }
-    };
-
-    // ✅ Step 5: Handle errors with clear messages
-    recognition.onerror = (e) => {
-      setIsListening(false);
-      clearTimeout(silenceTimer);
-      switch (e.error) {
-        case "not-allowed":
-          alert(
-            "🎤 Microphone blocked!\n\n" +
-              "Click the 🔒 lock icon → set Microphone to Allow → refresh page",
-          );
-          break;
-        case "no-speech":
-          alert("No speech detected. Please try again and speak clearly.");
-          break;
-        case "audio-capture":
-          alert(
-            "🎤 No microphone detected!\n\n" +
-              "Please connect a microphone and try again.",
-          );
-          break;
-        case "network":
-          alert("Network error. Please check your internet connection.");
-          break;
-        case "aborted":
-          // User cancelled — do nothing
-          break;
-        default:
-          alert(`Voice search error: ${e.error}. Please try again.`);
-      }
-    };
-
-    // ✅ Step 6: Auto-stop after 8 seconds of silence
-    recognition.onstart = () => {
-      silenceTimer = setTimeout(() => {
-        if (!gotResult) {
-          recognition.stop();
+        doSearch(transcript);
+      };
+      recognition.onerror = (e) => {
+        if (e.error === "not-allowed") {
           setIsListening(false);
+          alert("Mic blocked. Allow mic in Chrome settings.");
         }
-      }, 8000);
-    };
-
-    recognition.onend = () => {
-      clearTimeout(silenceTimer);
-      if (!gotResult) setIsListening(false);
-    };
-
-    try {
+      };
+      recognition.onend = () => {
+        if (!gotResult) {
+          try {
+            recognition.start();
+          } catch (e) {}
+        }
+      };
       recognition.start();
-    } catch (e) {
-      setIsListening(false);
-      alert("Could not start voice search. Please try again.");
-    }
+    });
   };
 
   const stopVoiceSearch = () => {
     if (recognitionRef.current) {
-      try {
-        recognitionRef.current.onend = null;
-        recognitionRef.current.abort(); // ✅ abort() is more reliable than stop()
-      } catch (e) {}
-      recognitionRef.current = null;
+      recognitionRef.current.onend = null;
+      recognitionRef.current.stop();
     }
     setIsListening(false);
   };
@@ -1385,7 +1279,7 @@ const Navbar = ({
             left: 0,
             right: 0,
             bottom: 0,
-            background: "rgba(0,0,0,0.75)",
+            background: "rgba(0,0,0,0.7)",
             zIndex: 99999,
             display: "flex",
             alignItems: "center",
@@ -1393,165 +1287,55 @@ const Navbar = ({
             flexDirection: "column",
             gap: "20px",
           }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) stopVoiceSearch();
-          }}
         >
           <div
             style={{
               background: "#212121",
-              borderRadius: "20px",
+              borderRadius: "16px",
               padding: "40px 60px",
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              gap: "16px",
-              boxShadow: "0 8px 40px rgba(0,0,0,0.9)",
-              minWidth: "300px",
-              maxWidth: "480px",
-              width: "90%",
+              gap: "20px",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.8)",
             }}
           >
-            {/* Animated mic */}
-            <div style={{ position: "relative" }}>
-              <div
-                style={{
-                  width: "80px",
-                  height: "80px",
-                  borderRadius: "50%",
-                  background: "red",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  animation: "pulse 1.2s infinite",
-                  zIndex: 1,
-                  position: "relative",
-                }}
-              >
-                <KeyboardVoiceIcon sx={{ fontSize: "40px", color: "white" }} />
-              </div>
-              {/* Ripple rings */}
-              <div
-                style={{
-                  position: "absolute",
-                  top: "50%",
-                  left: "50%",
-                  transform: "translate(-50%,-50%)",
-                  width: "80px",
-                  height: "80px",
-                  borderRadius: "50%",
-                  border: "2px solid rgba(255,0,0,0.4)",
-                  animation: "ripple 1.5s infinite",
-                  zIndex: 0,
-                }}
-              />
-              <div
-                style={{
-                  position: "absolute",
-                  top: "50%",
-                  left: "50%",
-                  transform: "translate(-50%,-50%)",
-                  width: "80px",
-                  height: "80px",
-                  borderRadius: "50%",
-                  border: "2px solid rgba(255,0,0,0.2)",
-                  animation: "ripple 1.5s infinite 0.5s",
-                  zIndex: 0,
-                }}
-              />
-            </div>
-
-            <p
+            <div
               style={{
-                color: "white",
-                fontSize: "20px",
-                fontWeight: "600",
-                margin: 0,
+                width: "80px",
+                height: "80px",
+                borderRadius: "50%",
+                background: "red",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                animation: "pulse 1.2s infinite",
               }}
             >
+              <KeyboardVoiceIcon sx={{ fontSize: "40px", color: "white" }} />
+            </div>
+            <p style={{ color: "white", fontSize: "20px", fontWeight: "600" }}>
               Listening...
             </p>
-            <p style={{ color: "#aaa", fontSize: "13px", margin: 0 }}>
-              Speak now — say what you want to search
+            <p style={{ color: "#aaa", fontSize: "14px" }}>
+              Speak now to search
             </p>
-
-            {/* Live transcript */}
-            {searchQuery && (
-              <div
-                style={{
-                  background: "#2a2a2a",
-                  borderRadius: "10px",
-                  padding: "10px 16px",
-                  width: "100%",
-                  textAlign: "center",
-                  color: "#3ea6ff",
-                  fontSize: "15px",
-                  fontWeight: "500",
-                  minHeight: "40px",
-                  border: "1px solid #3a3a3a",
-                }}
-              >
-                "{searchQuery}"
-              </div>
-            )}
-
-            {/* Language selector */}
-            <select
-              onChange={(e) => {
-                if (recognitionRef.current)
-                  recognitionRef.current.lang = e.target.value;
-              }}
-              defaultValue="en-IN"
-              style={{
-                background: "#2a2a2a",
-                border: "1px solid #444",
-                color: "#aaa",
-                borderRadius: "8px",
-                padding: "6px 12px",
-                fontSize: "12px",
-                cursor: "pointer",
-                width: "100%",
-              }}
-            >
-              <option value="en-IN">🇮🇳 English (India)</option>
-              <option value="en-US">🇺🇸 English (US)</option>
-              <option value="hi-IN">🇮🇳 Hindi</option>
-              <option value="en-GB">🇬🇧 English (UK)</option>
-              <option value="mr-IN">🇮🇳 Marathi</option>
-              <option value="ta-IN">🇮🇳 Tamil</option>
-              <option value="te-IN">🇮🇳 Telugu</option>
-              <option value="bn-IN">🇮🇳 Bengali</option>
-            </select>
-
             <button
               onClick={stopVoiceSearch}
               style={{
-                marginTop: "4px",
-                padding: "10px 32px",
-                borderRadius: "10px",
+                marginTop: "10px",
+                padding: "8px 24px",
+                borderRadius: "8px",
                 border: "1px solid #555",
-                background: "#333",
+                background: "transparent",
                 color: "white",
                 cursor: "pointer",
                 fontSize: "14px",
-                fontWeight: "600",
-                width: "100%",
-                transition: "background 0.2s",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#444")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "#333")}
             >
-              ✕ Cancel
+              Cancel
             </button>
           </div>
-
-          {/* Ripple animation */}
-          <style>{`
-      @keyframes ripple {
-        0%   { transform: translate(-50%,-50%) scale(1); opacity: 1; }
-        100% { transform: translate(-50%,-50%) scale(2.5); opacity: 0; }
-      }
-    `}</style>
         </div>
       )}
     </div>
