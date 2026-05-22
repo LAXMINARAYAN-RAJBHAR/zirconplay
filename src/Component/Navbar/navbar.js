@@ -553,13 +553,13 @@ const Navbar = ({
               dominantBaseline="middle"
               textAnchor="middle"
               fill="white"
-              fontSize="8.3"
+              fontSize="7.7"
               fontWeight="700"
               fontFamily="Arial"
               letterSpacing="1.2"
               opacity="1"
             >
-              ZIRCON
+              ZIXPLON
             </text>
           </svg>
 
@@ -583,7 +583,7 @@ const Navbar = ({
               }}
               style={{ display: "inline-flex", alignItems: "center" }}
             >
-              {"ZirconPlay".split("").map((char, i) => (
+              {"ZIXPLON".split("").map((char, i) => (
                 <span
                   key={i}
                   className="logoChar"
