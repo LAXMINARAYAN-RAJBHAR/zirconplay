@@ -549,7 +549,6 @@ export const reelsData = [
   },
 ];
 
-// Add this helper function above ReelItem
 const getVideoType = (src) => {
   if (src.includes(".mp4")) return "video/mp4";
   if (src.includes(".webm")) return "video/webm";
@@ -558,10 +557,9 @@ const getVideoType = (src) => {
   if (src.includes(".avi")) return "video/x-msvideo";
   if (src.includes(".wmv")) return "video/x-ms-wmv";
   if (src.includes(".flv")) return "video/x-flv";
-  return "video/mp4"; // default fallback
+  return "video/mp4";
 };
 
-// ✅ ReelItem — NO navigate here, it belongs in the thumbnail list
 const ReelItem = ({ reel }) => {
   const videoRef = useRef(null);
   const [subscribed, setSubscribed] = useState(false);
@@ -652,7 +650,7 @@ const ReelItem = ({ reel }) => {
           setIsPlaying(false);
         }
       },
-      { threshold: 0.7 },
+      { threshold: 0.7 }
     );
 
     observerRef.current.observe(container);
@@ -694,6 +692,10 @@ const ReelItem = ({ reel }) => {
     setMuted(video.muted);
   };
 
+const handleLike = () => {
+  setLiked((prev) => !prev);
+};
+
   return (
     <div className="reel_item" id={`reel-${reel.id}`} ref={containerRef}>
       <div className="reel_video_wrapper">
@@ -716,7 +718,6 @@ const ReelItem = ({ reel }) => {
             onClick={handleVideoClick}
           >
             <source src={reel.src} type={getVideoType(reel.src)} />
-            {/* WebM fallback if you have one */}
             Your browser does not support this video.
           </video>
         )}
@@ -726,18 +727,24 @@ const ReelItem = ({ reel }) => {
         )}
 
         <div className="reel_actions">
-          <div className="reel_action_btn" onClick={() => setLiked(!liked)}>
-            <ThumbUpOutlinedIcon
-              style={{ color: liked ? "#ff0000" : "white" }}
-            />
-            <span>{liked ? reel.likes + 1 : reel.likes}</span>
+          {/* ✅ Like button — morphs into 😊 emoji when liked */}
+          <div
+            className={`reel_action_btn reel_like_btn ${liked ? "reel_liked" : ""}`}
+            onClick={handleLike}
+          >
+            <span className="reel_like_inner">
+              <ThumbUpOutlinedIcon style={{ color: "white" }} />
+              <span className="reel_like_count">
+                {liked ? reel.likes + 1 : reel.likes}
+              </span>
+            </span>
+            <span className="reel_like_emoji">😊</span>
           </div>
 
           <div className="reel_action_btn">
             <ThumbDownAltOutlinedIcon style={{ color: "white" }} />
           </div>
 
-          {/* ✅ Comment — toggles the comment panel */}
           <div
             className="reel_action_btn"
             onClick={() => setShowComments((v) => !v)}
@@ -748,14 +755,12 @@ const ReelItem = ({ reel }) => {
             <span>{comments.length || "Comment"}</span>
           </div>
 
-          {/* ✅ Share — copies link, was wrongly calling toggleMute before */}
           <div className="reel_action_btn" onClick={handleShare}>
             <ShareOutlinedIcon style={{ color: "white" }} />
             <span>Share</span>
           </div>
         </div>
 
-        {/* ✅ Comment panel */}
         {showComments && (
           <div className="reel_comment_panel">
             <div className="reel_comment_input_row">
@@ -785,7 +790,6 @@ const ReelItem = ({ reel }) => {
           </div>
         )}
 
-        {/* ✅ Share toast */}
         {shareToast && (
           <div className="reel_share_toast">Link copied to clipboard</div>
         )}
@@ -808,7 +812,7 @@ const ReelItem = ({ reel }) => {
             <button
               className="reel_subscribe_btn"
               onClick={(e) => {
-                e.preventDefault(); // prevent Link navigation
+                e.preventDefault();
                 setSubscribed((prev) => !prev);
               }}
               style={{
@@ -826,15 +830,12 @@ const ReelItem = ({ reel }) => {
   );
 };
 
-// ✅ Reels — reads reelId from location state and scrolls to it
 const Reels = () => {
   const location = useLocation();
 
-  // ✅ Scroll to the correct reel when navigated from homepage
   useEffect(() => {
     const reelId = location.state?.reelId;
     if (reelId) {
-      // Small timeout to let all reel items render first
       setTimeout(() => {
         const target = document.getElementById(`reel-${reelId}`);
         if (target) {
@@ -844,51 +845,49 @@ const Reels = () => {
     }
   }, [location.state?.reelId]);
 
-  // ADD THIS
   useEffect(() => {
     const handleKeyDown = (e) => {
-  // ✅ Don't intercept spacebar if user is typing in an input/textarea
-  const tag = document.activeElement?.tagName?.toLowerCase();
-  if (tag === "input" || tag === "textarea") return;
+      const tag = document.activeElement?.tagName?.toLowerCase();
+      if (tag === "input" || tag === "textarea") return;
 
-  if (["Space", "ArrowUp", "ArrowDown"].includes(e.code)) {
-    e.preventDefault();
-    e.stopPropagation();
-  }
-
-  if (e.code === "ArrowDown") {
-    const reelItems = document.querySelectorAll(".reel_item");
-    for (let i = 0; i < reelItems.length; i++) {
-      const rect = reelItems[i].getBoundingClientRect();
-      if (rect.top >= 10) {
-        reelItems[i].scrollIntoView({ behavior: "smooth" });
-        break;
+      if (["Space", "ArrowUp", "ArrowDown"].includes(e.code)) {
+        e.preventDefault();
+        e.stopPropagation();
       }
-    }
-  }
 
-  if (e.code === "ArrowUp") {
-    const reelItems = document.querySelectorAll(".reel_item");
-    for (let i = reelItems.length - 1; i >= 0; i--) {
-      const rect = reelItems[i].getBoundingClientRect();
-      if (rect.top < -10) {
-        reelItems[i].scrollIntoView({ behavior: "smooth" });
-        break;
+      if (e.code === "ArrowDown") {
+        const reelItems = document.querySelectorAll(".reel_item");
+        for (let i = 0; i < reelItems.length; i++) {
+          const rect = reelItems[i].getBoundingClientRect();
+          if (rect.top >= 10) {
+            reelItems[i].scrollIntoView({ behavior: "smooth" });
+            break;
+          }
+        }
       }
-    }
-  }
 
-  if (e.code === "Space") {
-    const videos = document.querySelectorAll(".reel_video");
-    videos.forEach((vid) => {
-      const rect = vid.getBoundingClientRect();
-      const isVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
-      if (isVisible) {
-        vid.paused ? vid.play() : vid.pause();
+      if (e.code === "ArrowUp") {
+        const reelItems = document.querySelectorAll(".reel_item");
+        for (let i = reelItems.length - 1; i >= 0; i--) {
+          const rect = reelItems[i].getBoundingClientRect();
+          if (rect.top < -10) {
+            reelItems[i].scrollIntoView({ behavior: "smooth" });
+            break;
+          }
+        }
       }
-    });
-  }
-};
+
+      if (e.code === "Space") {
+        const videos = document.querySelectorAll(".reel_video");
+        videos.forEach((vid) => {
+          const rect = vid.getBoundingClientRect();
+          const isVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
+          if (isVisible) {
+            vid.paused ? vid.play() : vid.pause();
+          }
+        });
+      }
+    };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
