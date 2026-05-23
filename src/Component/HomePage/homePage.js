@@ -597,7 +597,6 @@ const HomePage = ({ sideNavbar }) => {
                   <div style={{ marginBottom: "24px" }}>
                     {dbLoading ? (
                       <>
-                        <SectionLabel color="#ff6600" bg="#ff660022" text="⬆ UPLOADED VIDEOS" />
                         <div className="youtube_VideoGrid">
                           {[...Array(4)].map((_, i) => <SkeletonCard key={i} />)}
                         </div>
