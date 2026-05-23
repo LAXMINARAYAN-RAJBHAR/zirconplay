@@ -358,6 +358,7 @@ const HomePage = ({ sideNavbar }) => {
   const [watchVideo, setWatchVideo] = useState(null);
   const [dbVideos, setDbVideos]     = useState([]);
   const [dbLoading, setDbLoading]   = useState(true);
+  const [dbReels, setDbReels]       = useState([]);
 
   const options = [
     "All", "DD News", "Kapil Sharma Show", "Hindi Movies", "Hindi News", "English News",
@@ -369,7 +370,7 @@ const HomePage = ({ sideNavbar }) => {
     "National Geography", "Indian Music", "Indian Movies", "Recently Uploaded", "Watched",
   ];
 
-  // ── Fetch from Supabase ──
+  // ── Fetch videos from Supabase ──
   useEffect(() => {
     const fetchDbVideos = async () => {
       setDbLoading(true);
@@ -408,7 +409,62 @@ const HomePage = ({ sideNavbar }) => {
     return () => supabase.removeChannel(subscription);
   }, []);
 
+  // ── Fetch reels from Supabase ──
+  useEffect(() => {
+    const fetchDbReels = async () => {
+      const { data, error } = await supabase
+        .from("reels")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (!error && data) {
+        setDbReels(
+          data.map((r) => ({
+            id:          r.id,
+            src:         r.video_url,
+            thumbnail:   r.thumbnail || "https://picsum.photos/200/350?random=99",
+            title:       r.title || "Untitled",
+            duration:    r.duration || "00:00",
+            user:        r.user || r.username || "Unknown",
+            username:    r.username || "unknown",
+            profilePic:  `https://api.dicebear.com/7.x/initials/svg?seed=${r.username || "user"}`,
+            description: r.description || "",
+            likes:       r.likes || 0,
+          }))
+        );
+      }
+    };
+
+    fetchDbReels();
+
+    const reelsSub = supabase
+      .channel("reels-channel")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "reels" }, (payload) => {
+        const r = payload.new;
+        setDbReels((prev) => [{
+          id:          r.id,
+          src:         r.video_url,
+          thumbnail:   r.thumbnail || "https://picsum.photos/200/350?random=99",
+          title:       r.title || "Untitled",
+          duration:    r.duration || "00:00",
+          user:        r.user || r.username || "Unknown",
+          username:    r.username || "unknown",
+          profilePic:  `https://api.dicebear.com/7.x/initials/svg?seed=${r.username || "user"}`,
+          description: r.description || "",
+          likes:       r.likes || 0,
+        }, ...prev]);
+      })
+      .subscribe();
+
+    return () => supabase.removeChannel(reelsSub);
+  }, []);
+
   const allVideos = [...dbVideos, ...videos];
+
+  // ── FIX: allReels merges DB reels at the top of hardcoded reels ──
+  // DB reels appear first in allReels, so row 0 of the loop already shows them.
+  // The separate dbReels-only row has been REMOVED to fix the gap/duplicate.
+  const allReels = [...dbReels, ...reelsData];
 
   useEffect(() => { fetchYouTubeByTopic(selectedOption); }, [selectedOption]);
 
@@ -581,46 +637,53 @@ const HomePage = ({ sideNavbar }) => {
 
         {/* ════ ALL TAB ════ */}
         {selectedOption === "All" ? (
-          Array.from({ length: Math.ceil(reelsData.length / 6) }).map((_, rowIndex) => {
-            const start  = rowIndex * 5;
-            const end    = start + 10;
-            const vStart = rowIndex * 8;
-            const vEnd   = vStart + 12;
-            return (
-              <React.Fragment key={rowIndex}>
+          <>
+            {/*
+              ✅ FIX: Removed the separate dbReels-only ShortsRow that was causing the gap.
+              allReels already contains [...dbReels, ...reelsData], so the loop below
+              naturally shows DB reels first in row 0 — no duplicate row needed.
+            */}
 
-                {/* Shorts Row */}
-                <ShortsRow data={reelsData.slice(start, end)} title={rowIndex === 0 ? "Shorts" : "More Shorts"} />
+            {Array.from({ length: Math.ceil(allReels.length / 6) }).map((_, rowIndex) => {
+              const start  = rowIndex * 5;
+              const end    = start + 10;
+              const vStart = rowIndex * 8;
+              const vEnd   = vStart + 12;
+              return (
+                <React.Fragment key={rowIndex}>
 
-                {/* ── Uploaded Videos appear below FIRST shorts row only ── */}
-                {rowIndex === 0 && (
-                  <div style={{ marginBottom: "24px" }}>
-                    {dbLoading ? (
-                      <>
+                  {/* Shorts Row — uses allReels (DB reels appear first in row 0) */}
+                  <ShortsRow
+                    data={allReels.slice(start, end)}
+                    title={rowIndex === 0 ? "Shorts" : "More Shorts"}
+                  />
+
+                  {/* Uploaded Videos appear below FIRST shorts row only */}
+                  {rowIndex === 0 && (
+                    <div style={{ marginBottom: "24px" }}>
+                      {dbLoading ? (
                         <div className="youtube_VideoGrid">
                           {[...Array(4)].map((_, i) => <SkeletonCard key={i} />)}
                         </div>
-                      </>
-                    ) : dbVideos.length > 0 ? (
-                      <>
+                      ) : dbVideos.length > 0 ? (
                         <div className="youtube_VideoGrid">
                           {dbVideos.map((v) => <VideoCard key={v.id} video={v} isUploaded={true} />)}
                         </div>
-                      </>
-                    ) : null}
-                  </div>
-                )}
+                      ) : null}
+                    </div>
+                  )}
 
-                {/* Hardcoded Videos Grid */}
-                {videos.slice(vStart, vEnd).length > 0 && (
-                  <div className="youtube_VideoGrid">
-                    {videos.slice(vStart, vEnd).map((v) => <VideoCard key={v.id} video={v} />)}
-                  </div>
-                )}
+                  {/* Hardcoded Videos Grid */}
+                  {videos.slice(vStart, vEnd).length > 0 && (
+                    <div className="youtube_VideoGrid">
+                      {videos.slice(vStart, vEnd).map((v) => <VideoCard key={v.id} video={v} />)}
+                    </div>
+                  )}
 
-              </React.Fragment>
-            );
-          })
+                </React.Fragment>
+              );
+            })}
+          </>
 
         ) : (
           /* ════ CATEGORY TAB ════ */

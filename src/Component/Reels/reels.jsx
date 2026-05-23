@@ -5,6 +5,7 @@ import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import ShareOutlinedIcon from "@mui/icons-material/ShareOutlined";
 import "./reels.css";
 import { Link, useLocation } from "react-router-dom";
+import { supabase } from "../../config/supabase";
 
 export const reelsData = [
   {
