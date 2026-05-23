@@ -610,7 +610,7 @@ const ReelItem = ({ reel }) => {
   };
 
   const isYouTube = (url) =>
-    url.includes("youtube.com") || url.includes("youtu.be");
+    url && (url.includes("youtube.com") || url.includes("youtu.be"));
 
   const getEmbedUrl = (url) => {
     if (url.includes("youtube.com/shorts/")) {
@@ -651,7 +651,7 @@ const ReelItem = ({ reel }) => {
           setIsPlaying(false);
         }
       },
-      { threshold: 0.7 }
+      { threshold: 0.7 },
     );
 
     observerRef.current.observe(container);
@@ -693,9 +693,9 @@ const ReelItem = ({ reel }) => {
     setMuted(video.muted);
   };
 
-const handleLike = () => {
-  setLiked((prev) => !prev);
-};
+  const handleLike = () => {
+    setLiked((prev) => !prev);
+  };
 
   return (
     <div className="reel_item" id={`reel-${reel.id}`} ref={containerRef}>
@@ -728,13 +728,14 @@ const handleLike = () => {
         )}
 
         <div className="reel_actions">
-          {/* ✅ Like button — morphs into 😊 emoji when liked */}
           <div
             className={`reel_action_btn reel_like_btn ${liked ? "reel_liked" : ""}`}
             onClick={handleLike}
           >
             <span className="reel_like_inner">
-              <ThumbUpOutlinedIcon style={{ color: liked ? "#ff0000" : "white" }} />
+              <ThumbUpOutlinedIcon
+                style={{ color: liked ? "#ff0000" : "white" }}
+              />
               <span className="reel_like_count">
                 {liked ? reel.likes + 1 : reel.likes}
               </span>
@@ -831,20 +832,92 @@ const handleLike = () => {
   );
 };
 
+// ─────────────────────────────────────────────────────────────
+// REELS COMPONENT — FIX: fetches DB reels and merges with
+// hardcoded reelsData so uploaded reels actually render & play
+// ─────────────────────────────────────────────────────────────
 const Reels = () => {
   const location = useLocation();
 
+  // ✅ FIX 1: State to hold DB reels fetched from Supabase
+  const [dbReels, setDbReels] = useState([]);
+
+  // ✅ FIX 2: Fetch DB reels on mount + real-time subscription
   useEffect(() => {
-    const reelId = location.state?.reelId;
-    if (reelId) {
-      setTimeout(() => {
-        const target = document.getElementById(`reel-${reelId}`);
-        if (target) {
-          target.scrollIntoView({ behavior: "smooth", block: "start" });
-        }
-      }, 100);
+    const fetchDbReels = async () => {
+      const { data, error } = await supabase
+        .from("reels")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (!error && data) {
+        setDbReels(
+  data.map((r) => ({
+    id:          `db_${r.id}`,
+            src: r.video_url,
+            thumbnail: r.thumbnail || "https://picsum.photos/200/350?random=99",
+            title: r.title || "Untitled",
+            duration: r.duration || "00:00",
+            user: r.user || r.username || "Unknown",
+            username: r.username || "unknown",
+            profilePic: `https://api.dicebear.com/7.x/initials/svg?seed=${r.username || "user"}`,
+            description: r.description || "",
+            likes: r.likes || 0,
+          })),
+        );
+      }
+    };
+
+    fetchDbReels();
+
+    // Real-time: new upload appears instantly
+    const reelsSub = supabase
+      .channel("reels-page-channel")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "reels" },
+        (payload) => {
+          const r = payload.new;
+          setDbReels((prev) => [
+            {
+              id: r.id,
+              src: r.video_url,
+              thumbnail:
+                r.thumbnail || "https://picsum.photos/200/350?random=99",
+              title: r.title || "Untitled",
+              duration: r.duration || "00:00",
+              user: r.user || r.username || "Unknown",
+              username: r.username || "unknown",
+              profilePic: `https://api.dicebear.com/7.x/initials/svg?seed=${r.username || "user"}`,
+              description: r.description || "",
+              likes: r.likes || 0,
+            },
+            ...prev,
+          ]);
+        },
+      )
+      .subscribe();
+
+    return () => supabase.removeChannel(reelsSub);
+  }, []);
+
+  const baseReels = [...dbReels, ...reelsData];
+
+  // Reorder by ID after all reels are loaded
+  const clickedId = location.state?.reelId;
+  const allReels = React.useMemo(() => {
+    if (!clickedId) return baseReels;
+    const idx = baseReels.findIndex((r) => String(r.id) === String(clickedId));
+    if (idx <= 0) return baseReels;
+    return [...baseReels.slice(idx), ...baseReels.slice(0, idx)];
+  }, [dbReels, clickedId]);
+
+  // Scroll to top when reel list reorders
+  useEffect(() => {
+    if (clickedId) {
+      window.scrollTo({ top: 0, behavior: "instant" });
     }
-  }, [location.state?.reelId]);
+  }, [allReels[0]?.id]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -896,7 +969,8 @@ const Reels = () => {
 
   return (
     <div className="reels_container">
-      {reelsData.map((reel) => (
+      {/* ✅ FIX 5: Render allReels instead of just reelsData */}
+      {allReels.map((reel) => (
         <ReelItem key={reel.id} reel={reel} />
       ))}
     </div>
