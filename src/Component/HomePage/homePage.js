@@ -1778,12 +1778,12 @@ const HomePage = ({ sideNavbar }) => {
             className="homePage_shortCard"
             style={{ cursor: "pointer" }}
             onClick={() => {
-              navigate("/reels", {
-                state: {
-                  reelId: short.id,
-                },
-              });
-            }}
+  navigate("/reels", {
+    state: {
+      clickedReel: short,  // pass full object
+    },
+  });
+}}
           >
             <div className="homePage_shortThumbnail">
               <img

@@ -852,8 +852,8 @@ const Reels = () => {
 
       if (!error && data) {
         setDbReels(
-  data.map((r) => ({
-    id:          `db_${r.id}`,
+          data.map((r) => ({
+            id: `db_${r.id}`,
             src: r.video_url,
             thumbnail: r.thumbnail || "https://picsum.photos/200/350?random=99",
             title: r.title || "Untitled",
@@ -901,23 +901,35 @@ const Reels = () => {
     return () => supabase.removeChannel(reelsSub);
   }, []);
 
-  const baseReels = [...dbReels, ...reelsData];
+  const clickedReel = location.state?.clickedReel;
 
-  // Reorder by ID after all reels are loaded
-  const clickedId = location.state?.reelId;
-  const allReels = React.useMemo(() => {
-    if (!clickedId) return baseReels;
-    const idx = baseReels.findIndex((r) => String(r.id) === String(clickedId));
-    if (idx <= 0) return baseReels;
-    return [...baseReels.slice(idx), ...baseReels.slice(0, idx)];
-  }, [dbReels, clickedId]);
+// Merge DB + static, deduplicate by id
+const baseReels = React.useMemo(() => {
+  const merged = [...dbReels, ...reelsData];
+  const seen = new Set();
+  return merged.filter((r) => {
+    const key = String(r.id);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}, [dbReels]);
 
-  // Scroll to top when reel list reorders
-  useEffect(() => {
-    if (clickedId) {
-      window.scrollTo({ top: 0, behavior: "instant" });
-    }
-  }, [allReels[0]?.id]);
+// Put clicked reel at top, remove its duplicate from the rest
+const allReels = React.useMemo(() => {
+  if (!clickedReel) return baseReels;
+  const rest = baseReels.filter(
+    (r) => String(r.id) !== String(clickedReel.id)
+  );
+  return [clickedReel, ...rest];
+}, [baseReels, clickedReel]);
+
+// Snap to top so clicked reel plays immediately
+useEffect(() => {
+  if (clickedReel) {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }
+}, [clickedReel?.id]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
