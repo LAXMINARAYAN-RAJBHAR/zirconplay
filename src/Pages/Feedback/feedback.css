@@ -1,0 +1,41 @@
+.feedback_container {
+  max-width: 600px;
+  margin: 60px auto;
+  padding: 40px;
+  background: #111;
+  border-radius: 10px;
+  color: #fff;
+  text-align: center;
+}
+
+.feedback_container h1 { font-size: 1.8rem; margin-bottom: 10px; }
+.feedback_container p  { color: #aaa; margin-bottom: 20px; }
+.feedback_container a  { color: #ff4444; text-decoration: none; margin-top: 20px; display: inline-block; }
+
+.star_rating { font-size: 2.5rem; margin-bottom: 20px; cursor: pointer; }
+.star        { color: #444; transition: color 0.2s; }
+.star.active { color: #f5c518; }
+
+.feedback_textarea {
+  width: 100%;
+  background: #1e1e1e;
+  border: 1px solid #333;
+  border-radius: 8px;
+  color: #fff;
+  padding: 12px;
+  font-size: 0.95rem;
+  resize: vertical;
+  margin-bottom: 20px;
+}
+
+.feedback_btn {
+  background: #ff4444;
+  color: #fff;
+  border: none;
+  padding: 12px 32px;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.feedback_btn:hover { background: #cc0000; }

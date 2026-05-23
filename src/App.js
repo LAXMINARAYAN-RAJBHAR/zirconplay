@@ -16,6 +16,11 @@ import ComingSoon from "./Pages/ComingSoon/comingSoon";
 import ScrollToTop from "./ScrollToTop";
 import LiveTVPage from "./Pages/LiveTV/LiveTVPage";
 import LocalMediaPlayer from "./Pages/LocalMediaPlayer/LocalMediaPlayer";
+import TermsAndConditions from './Pages/TermsAndConditions/termsAndConditions'
+import Feedback from './Pages/Feedback/feedback'
+import Help from './Pages/Help/help'
+import ContactSupport from './Pages/ContactSupport/contactSupport'
+import ReportProblem from './Pages/ReportProblem/reportProblem'
 
 function App() {
   const location = useLocation();
@@ -66,6 +71,11 @@ function App() {
           <Route path="/subscription"  element={<ComingSoon title="Subscription" sideNavbar={sideNavbar} />} />
           <Route path="/live-tv" element={<LiveTVPage sideNavbar={sideNavbar} />} />
           <Route path="/local-player" element={<LocalMediaPlayer sideNavbar={sideNavbar} />} />
+          <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
+          <Route path="/feedback"   element={<Feedback />} />
+          <Route path="/help"       element={<Help />} />
+          <Route path="/contact"    element={<ContactSupport />} />
+          <Route path="/report"     element={<ReportProblem />} />
         </Routes>
       </div>
 
