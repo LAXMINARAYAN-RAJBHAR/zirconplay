@@ -4,6 +4,7 @@ import ThumbUpOutlinedIcon from "@mui/icons-material/ThumbUpOutlined";
 import ThumbDownAltOutlinedIcon from "@mui/icons-material/ThumbDownAltOutlined";
 import ShareIcon from "@mui/icons-material/Share";
 import { Link, useParams, useNavigate } from "react-router-dom";
+import { supabase } from "../../config/supabase";
 
 const getVideoType = (src) => {
   if (!src) return "video/mp4";
@@ -28,7 +29,7 @@ const isUnsupportedFormat = (src) => {
   return ["avi", "wmv", "mkv", "flv"].includes(ext);
 };
 
-const videos = [
+const hardcodedVideos = [
   { id: 7679, src: "https://download.blender.org/peach/bigbuckbunny_movies/BigBuckBunny_320x180.mp4", thumbnail: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTu-l3JR0guZspKsBZkVoakjkQ-qxUCCpkQnw&s", title: "Big Buck Bunny open-source film", duration: "09:56", channel: "Gangeshwary" },
   { id: 2, src: "https://media.w3.org/2010/05/sintel/trailer.mp4", thumbnail: "https://i.ytimg.com/vi/ScMzIvxBSi4/hqdefault.jpg", title: "Sample Video 2", duration: "30:00", channel: "Mummy" },
   { id: 3, src: "https://media.w3.org/2010/05/video/movie_300.mp4", thumbnail: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTwyNTbTLzlbDj6RSQdV6imNyxNywT3pchKKg&s", title: "3d Lion Stock Photo", duration: "60:00", channel: "Papa" },
@@ -101,26 +102,58 @@ const defaultComments = [
 const Video = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+
+  // ── Supabase: fetch uploaded videos ──
+  const [allVideos, setAllVideos] = useState(hardcodedVideos);
+  const [dbLoading, setDbLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDbVideos = async () => {
+      setDbLoading(true);
+      const { data, error } = await supabase
+        .from("videos")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (!error && data && data.length > 0) {
+        const formatted = data.map((v) => ({
+          id:        v.id,
+          src:       v.video_url,
+          thumbnail: v.thumbnail_url,
+          title:     v.title,
+          duration:  v.duration || "00:00",  // ← was hardcoded "00:00"
+          channel:   v.channel,
+          tags:      [v.category || "All"],
+        }));
+        // DB videos first, then hardcoded
+        setAllVideos([...formatted, ...hardcodedVideos]);
+      }
+      setDbLoading(false);
+    };
+    fetchDbVideos();
+  }, []);
+
   const [subscribedChannels, setSubscribedChannels] = useState(new Set());
-  const [message, setMessage] = useState("");
-  const [autoPlay, setAutoPlay] = useState(true);
+  const [message, setMessage]       = useState("");
+  const [autoPlay, setAutoPlay]     = useState(true);
   const [showControls, setShowControls] = useState(true);
   const [videoError, setVideoError] = useState(false);
-  const [liked, setLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(32);
-  const [disliked, setDisliked] = useState(false);
+  const [liked, setLiked]           = useState(false);
+  const [likeCount, setLikeCount]   = useState(32);
+  const [disliked, setDisliked]     = useState(false);
   const [shareToast, setShareToast] = useState(false);
   const [allComments, setAllComments] = useState({});
 
   const loggedInUser = localStorage.getItem("username") || "Guest";
-  const comments = allComments[id] ?? defaultComments;
+  const comments     = allComments[id] ?? defaultComments;
   const controlsTimer = useRef(null);
-  const videoRef = useRef(null);
+  const videoRef      = useRef(null);
 
-  const currentIndex = videos.findIndex((v) => v.id === Number(id));
-  const video = videos[currentIndex];
-  const nextVideo = videos[currentIndex + 1] || videos[0];
-  const prevVideo = videos[currentIndex - 1] || videos[videos.length - 1];
+  // ── Use allVideos (DB + hardcoded) for lookup ──
+  const currentIndex = allVideos.findIndex((v) => String(v.id) === String(id));
+  const video        = allVideos[currentIndex];
+  const nextVideo    = allVideos[currentIndex + 1] || allVideos[0];
+  const prevVideo    = allVideos[currentIndex - 1] || allVideos[allVideos.length - 1];
   const isSubscribed = subscribedChannels.has(video?.channel);
 
   const handleSubscribe = () => {
@@ -144,7 +177,6 @@ const Video = () => {
 
   const handleVideoError = () => setVideoError(true);
 
-  // ✅ Same pattern as reels: toggle liked, count increments, no auto-reset
   const handleLike = () => {
     setLiked((prev) => !prev);
     setLikeCount((c) => liked ? c - 1 : c + 1);
@@ -206,11 +238,30 @@ const Video = () => {
     setVideoError(false);
   }, [id]);
 
-  if (!video)
-    return <p style={{ color: "white", padding: "20px" }}>Video not found</p>;
+  // ── Loading state while fetching DB videos ──
+  if (dbLoading) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh", color: "white", flexDirection: "column", gap: "16px" }}>
+        <div style={{ width: "48px", height: "48px", border: "4px solid #333", borderTop: "4px solid #ff4444", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+        <p style={{ color: "#aaa", fontSize: "14px" }}>Loading video...</p>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
 
-  const suggestions = videos.filter((v) => v.id !== video.id);
-  const formatName = video.src?.split(".").pop().split("?")[0].toUpperCase();
+  if (!video) {
+    return (
+      <div style={{ color: "white", padding: "40px", textAlign: "center" }}>
+        <div style={{ fontSize: "48px", marginBottom: "16px" }}>📭</div>
+        <p style={{ fontSize: "18px", marginBottom: "8px" }}>Video not found</p>
+        <p style={{ color: "#aaa", fontSize: "14px" }}>This video may have been removed or the link is incorrect.</p>
+        <button onClick={() => navigate("/")} style={{ marginTop: "20px", background: "#ff4444", color: "white", border: "none", padding: "10px 24px", borderRadius: "8px", cursor: "pointer", fontSize: "14px" }}>← Go Home</button>
+      </div>
+    );
+  }
+
+  const suggestions = allVideos.filter((v) => String(v.id) !== String(id));
+  const formatName  = video.src?.split(".").pop().split("?")[0].toUpperCase();
 
   return (
     <div className="video">
@@ -259,7 +310,6 @@ const Video = () => {
           </video>
 
           <div className="video_frame_actions">
-            {/* ✅ Like button — exact same pattern as reels */}
             <div
               className={`video_frame_btn video_like_btn ${liked ? "video_liked" : ""}`}
               onClick={handleLike}
@@ -287,7 +337,7 @@ const Video = () => {
           </div>
         </div>
 
-        {/* ── up next preview ── */}
+        {/* ── Up Next Preview ── */}
         <Link to={`/video/${nextVideo.id}`} className="next_video_preview" style={{ textDecoration: "none" }}>
           <span className="next_video_label">▶ Up Next</span>
           <img src={nextVideo.thumbnail} alt={nextVideo.title} className="next_video_thumb" />
@@ -298,7 +348,7 @@ const Video = () => {
           </div>
         </Link>
 
-        {/* ── video info ── */}
+        {/* ── Video Info ── */}
         <div className="video_youtubeAbout">
           <div className="video_uTubeTitle">{video.title}</div>
 
@@ -334,7 +384,7 @@ const Video = () => {
             <div>This is the cool video</div>
           </div>
 
-          {/* ── comments ── */}
+          {/* ── Comments ── */}
           <div className="youtubeCommentSection">
             <div className="youtubeCommentSectionTitle">{comments.length} Comments</div>
             <div className="youtubeSelfComment">
@@ -372,8 +422,8 @@ const Video = () => {
         </div>
       </div>
 
-      {/* ── suggestions sidebar ── */}
-      <div className="videoSuggestions">
+      {/* ── Suggestions Sidebar ── */}
+      <div className="videoSuggestions" style={{ overflowY: "scroll", scrollbarWidth: "none" }}>
         {suggestions.map((suggestion) => (
           <Link to={`/video/${suggestion.id}`} key={suggestion.id} className="videoSuggestionsBlock" style={{ textDecoration: "none", color: "inherit" }}>
             <div className="video_suggestion_thumbnail">

@@ -1,68 +1,152 @@
-.videoUpload{
-    padding-top: 56px;
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    height: 92vh;
-    font-family: "Oswald", sans-serif;
-    font-optical-sizing: auto;
-    font-weight: 400;
-    font-style: normal;
-    background-color: black;
-    color: white;
-}
-.uploadBox{
-    width: 45%;
-    border-radius: 5px;
-    margin-top: 20px;
-    box-shadow: 0.5px 0.5px 8px white;
-    padding: 25px;
-}
-.uploadVideoTitle{
-    display: flex;
-    width: 100%;
-    justify-content: center;
-    align-items: center;
-    font-size: 28px;
-}
-.uploadForm{
-    display: flex;
-    flex-direction: column;
-    gap: 30px;
-    margin-top: 30px;
-    align-items: center;
-
-}
-.uploadFormInputs{
-    width: 70%;
-    height: 45px;
-    padding: 0 20px;
-    font-size: 16px;
-    color: white;
-    box-sizing: border-box;
-    background-color: #222222;
-    border: none;
-    border-radius: 5px;
+.videoUpload {
+  padding-top: 56px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 92vh;        /* ← change height to min-height */
+  font-family: "Oswald", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+  background-color: black;
+  color: white;
+  padding-bottom: 40px;    /* ← add this so content doesn't touch footer */
+  box-sizing: border-box;  /* ← add this */
 }
 
-.uploadBtns{
-    display: flex;
-    gap: 30px;
-    justify-content: center;
-    margin-top: 30px;
+.uploadBox {
+  width: 45%;
+  border-radius: 5px;
+  margin-top: 20px;
+  box-shadow: 0.5px 0.5px 8px white;
+  padding: 25px;
+  box-sizing: border-box;  /* ← add this */
 }
-.uploadBtns-form{
-    padding: 10px 20px;
-    border: 1px solid;
-    font-weight: 500;
-    font-size: 18px;
-    border-radius: 5px;
-    cursor: pointer;
-    color: white;
-    text-decoration: none;
-    &:hover{
-        background-color: white;
-        color: black;
-    }
+
+.uploadVideoTitle {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  align-items: center;
+  font-size: 28px;
+}
+
+.uploadForm {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  margin-top: 30px;
+  align-items: center;
+}
+
+.uploadFormInputs {
+  width: 70%;
+  height: 45px;
+  padding: 0 20px;
+  font-size: 16px;
+  color: white;
+  box-sizing: border-box;
+  background-color: #222222;
+  border: none;
+  border-radius: 5px;
+}
+
+.uploadBtns {
+  display: flex;
+  gap: 30px;
+  justify-content: center;
+  margin-top: 30px;
+}
+
+.uploadBtns-form {
+  padding: 10px 20px;
+  border: 1px solid;
+  font-weight: 500;
+  font-size: 18px;
+  border-radius: 5px;
+  cursor: pointer;
+  color: white;
+  text-decoration: none;
+  &:hover {
+    background-color: white;
+    color: black;
+  }
+}
+
+.upload_file_row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 70%;
+}
+
+.upload_file_label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #ccc;
+  font-size: 0.95rem;
+}
+
+.upload_file_btn {
+  background: #2a2a2a;
+  border: 1px solid #444;
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+.upload_file_btn:hover { background: #ff4444; border-color: #ff4444; }
+
+.upload_thumb_preview {
+  width: 80px;
+  height: 50px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #333;
+}
+
+.upload_video_ready {
+  color: #4caf50;
+  font-size: 0.88rem;
+}
+
+.upload_error_msg {
+  color: #ff4444;
+  font-size: 0.88rem;
+  margin: 6px 0;
+}
+
+.uploadBtns-disabled {
+  background: #555 !important;
+  cursor: not-allowed !important;
+  pointer-events: none;
+}
+
+.upload_success_screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 20px 0;
+  gap: 10px;
+}
+
+.upload_success_screen h2 { font-size: 1.6rem; color: #fff; }
+.upload_success_screen p  { color: #aaa; font-size: 0.9rem; }
+
+.upload_success_preview {
+  width: 100%;
+  max-width: 480px;
+  border-radius: 10px;
+  margin: 10px 0;
+}
+
+.upload_success_meta {
+  color: #888;
+  font-size: 0.85rem;
 }
