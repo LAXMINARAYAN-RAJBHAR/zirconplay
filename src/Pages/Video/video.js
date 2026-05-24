@@ -25,6 +25,8 @@ const getVideoType = (src) => {
 
 const isUnsupportedFormat = (src) => {
   if (!src) return false;
+  // Cloudinary/Supabase URLs — always safe
+  if (src.includes("cloudinary.com") || src.includes("supabase")) return false;
   const ext = src.split(".").pop().split("?")[0].toLowerCase();
   return ["avi", "wmv", "mkv", "flv"].includes(ext);
 };
@@ -282,17 +284,18 @@ const Video = () => {
             <button className="video_nav_btn" onClick={() => navigate(`/video/${nextVideo.id}`)}>Next ⏭</button>
           </div>
 
-          {isUnsupportedFormat(video.src) && (
-            <div style={{ background: "#ff4444", color: "white", padding: "10px 16px", borderRadius: "6px", marginBottom: "8px", fontSize: "14px" }}>
-              ⚠️ <strong>{formatName}</strong> format is not supported in browsers. Please convert to MP4 or WebM using FFmpeg.
-            </div>
-          )}
+          {isUnsupportedFormat(video.src) && !videoError && (
+  <div style={{ background: "#ff4444", color: "white", padding: "10px 16px", borderRadius: "6px", marginBottom: "8px", fontSize: "14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <span>⚠️ <strong>{formatName}</strong> format may not be supported. If video plays fine, ignore this.</span>
+    <button onClick={() => setVideoError(false)} style={{ background: "none", border: "1px solid white", color: "white", cursor: "pointer", borderRadius: "4px", padding: "2px 10px", marginLeft: "12px" }}>✕</button>
+  </div>
+)}
 
-          {videoError && !isUnsupportedFormat(video.src) && (
-            <div style={{ background: "#ff8800", color: "white", padding: "10px 16px", borderRadius: "6px", marginBottom: "8px", fontSize: "14px" }}>
-              ⚠️ This video could not be played. The format may not be supported by your browser.
-            </div>
-          )}
+{videoError && (
+  <div style={{ background: "#ff8800", color: "white", padding: "10px 16px", borderRadius: "6px", marginBottom: "8px", fontSize: "14px" }}>
+    ⚠️ This video could not be played. Please try a different format.
+  </div>
+)}
 
           <video
             ref={videoRef}
