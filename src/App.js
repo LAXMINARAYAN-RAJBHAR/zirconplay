@@ -21,7 +21,6 @@ import Feedback from "./Pages/Feedback/feedback";
 import Help from "./Pages/Help/help";
 import ContactSupport from "./Pages/ContactSupport/contactSupport";
 import ReportProblem from "./Pages/ReportProblem/reportProblem";
-import { useEffect } from "react";
 import { supabase } from "./supabaseClient";
 import { useState, useEffect } from "react";
 
