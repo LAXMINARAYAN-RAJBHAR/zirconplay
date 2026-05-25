@@ -21,7 +21,7 @@ import Feedback from "./Pages/Feedback/feedback";
 import Help from "./Pages/Help/help";
 import ContactSupport from "./Pages/ContactSupport/contactSupport";
 import ReportProblem from "./Pages/ReportProblem/reportProblem";
-import { supabase } from "./supabaseClient";
+import { supabase } from "./config/supabase";
 
 function App() {
   const location = useLocation();
