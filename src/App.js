@@ -1,7 +1,7 @@
 import "./App.css";
 import Navbar from "./Component/Navbar/navbar";
 import Home from "./Pages/Home/home";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
 import Video from "./Pages/Video/video";
 import Profile from "./Pages/Profile/profile";
@@ -22,7 +22,6 @@ import Help from "./Pages/Help/help";
 import ContactSupport from "./Pages/ContactSupport/contactSupport";
 import ReportProblem from "./Pages/ReportProblem/reportProblem";
 import { supabase } from "./supabaseClient";
-import { useState, useEffect } from "react";
 
 function App() {
   const location = useLocation();
