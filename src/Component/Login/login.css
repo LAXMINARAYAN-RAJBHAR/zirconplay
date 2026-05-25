@@ -1,28 +1,36 @@
 .login{
     width: 100%;
     height: 100%;
-    background-color: rgba(0.0.0.0.7);
+    background-color: rgba(0, 0, 0, 0.85);  /* ← fixed invalid rgba */
     position: fixed;
     top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     color: white;
     display: flex;
     justify-content: center;
-    font-family: "oswald", sans-serif;
-    font-optical-sizing: auto;
+    align-items: flex-start;  /* ← align to top */
+    overflow-y: auto;         /* ← scrollable if content too tall */
+    z-index: 999999;
+    font-family: "Oswald", sans-serif;
     font-weight: 400;
-    font-style: normal;
 }
 .login_card{
     width: 40%;
-    height: 60%;
-    margin-top: 100px;
-    background-color: black;
+    min-height: auto;        /* ← remove fixed height */
+    height: auto;            /* ← let it grow naturally */
+    margin-top: 60px;
+    margin-bottom: 60px;     /* ← breathing room at bottom */
+    background-color: #111;
     box-sizing: border-box;
-    padding: 60px;
+    padding: 30px 40px;      /* ← reduced padding */
     display: flex;
     flex-direction: column;
     align-items: center;
-    box-shadow: 0.5px 0.5px 8px white;
+    box-shadow: 0 8px 32px rgba(255,255,255,0.1);
+    border-radius: 16px;
+    border: 1px solid #333;
 }
 .titleCard_login{
     font-size: 32px;

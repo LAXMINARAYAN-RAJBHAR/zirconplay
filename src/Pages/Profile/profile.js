@@ -1,11 +1,11 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import "./profile.css";
 import SideNavbar from "../../Component/SideNavbar/sideNavbar";
 import ArrowRightIcon from "@mui/icons-material/ArrowRight";
 import { Link, useParams } from "react-router-dom";
 import { reelsData } from "../../Component/Reels/reels";
+import { supabase } from "../../config/supabase";
 
-// ✅ Moved videos data here (or import from a shared file)
 const allVideos = [
   { id: 7679, thumbnail: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTu-l3JR0guZspKsBZkVoakjkQ-qxUCCpkQnw&s", title: "Big Buck Bunny open-source film", duration: "09:56", channel: "Gangeshwary" },
   { id: 2, thumbnail: "https://i.ytimg.com/vi/ScMzIvxBSi4/hqdefault.jpg", title: "Sample Video 2", duration: "30:00", channel: "Mummy" },
@@ -19,134 +19,184 @@ const allVideos = [
   { id: 10, thumbnail: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRS5r-8k6FyUEN9OYQu5WgyyNqT8lrqgw7dCQ&s", title: "3D Nature Images", duration: "12:00", channel: "Rajbhar" },
   { id: 11, thumbnail: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQeUzhAtZL9ElXiENfplVjR5dCJsUQUG2NuXg&s", title: "5,364,800+ 3d Images", duration: "13:30", channel: "Narayan" },
   { id: 12, thumbnail: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQdcK3NWfTM_cOjFOH6ArcBdUbu29e0AVjFZw&s", title: "Understanding 3D Computer Graphics", duration: "20:50", channel: "Laxminarayan" },
-  { id: 13, thumbnail: "https://picsum.photos/seed/lion1/320/180", title: "3D Lion Stock Photo", duration: "60:00", channel: "Papa" },
-  { id: 14, thumbnail: "https://picsum.photos/seed/tiger2/320/180", title: "Tiger in Wild", duration: "45:00", channel: "NatureTV" },
-  { id: 15, thumbnail: "https://picsum.photos/seed/forest3/320/180", title: "Forest Walk", duration: "30:00", channel: "EcoWorld" },
-  { id: 16, thumbnail: "https://picsum.photos/seed/ocean4/320/180", title: "Ocean Waves", duration: "15:00", channel: "SeaLife" },
-  { id: 17, thumbnail: "https://picsum.photos/seed/mountain5/320/180", title: "Mountain Trek", duration: "20:00", channel: "Adventures" },
-  { id: 18, thumbnail: "https://picsum.photos/seed/city6/320/180", title: "City Lights", duration: "10:00", channel: "UrbanVibe" },
-  { id: 19, thumbnail: "https://picsum.photos/seed/sunset7/320/180", title: "Sunset Timelapse", duration: "05:00", channel: "SkyWatch" },
-  { id: 20, thumbnail: "https://picsum.photos/seed/beach8/320/180", title: "Beach Day", duration: "12:00", channel: "SummerFun" },
-  { id: 21, thumbnail: "https://picsum.photos/seed/rain9/320/180", title: "Rainy Day", duration: "08:00", channel: "Chill" },
-  { id: 22, thumbnail: "https://picsum.photos/seed/snow10/320/180", title: "Snowfall", duration: "25:00", channel: "WinterMood" },
-  { id: 23, thumbnail: "https://picsum.photos/seed/car11/320/180", title: "Sports Car Review", duration: "18:00", channel: "AutoDrive" },
-  { id: 24, thumbnail: "https://picsum.photos/seed/food12/320/180", title: "Pasta Recipe", duration: "22:00", channel: "ChefLife" },
-  { id: 25, thumbnail: "https://picsum.photos/seed/tech13/320/180", title: "Latest Gadgets", duration: "35:00", channel: "TechZone" },
-  { id: 26, thumbnail: "https://picsum.photos/seed/space14/320/180", title: "Space Exploration", duration: "40:00", channel: "NASAFan" },
-  { id: 27, thumbnail: "https://picsum.photos/seed/dog15/320/180", title: "Cute Dogs Compilation", duration: "14:00", channel: "PetPals" },
-  { id: 28, thumbnail: "https://picsum.photos/seed/cat16/320/180", title: "Funny Cats", duration: "11:00", channel: "MeowTime" },
-  { id: 29, thumbnail: "https://picsum.photos/seed/workout17/320/180", title: "Morning Workout", duration: "28:00", channel: "FitLife" },
-  { id: 30, thumbnail: "https://picsum.photos/seed/yoga18/320/180", title: "Yoga for Beginners", duration: "45:00", channel: "ZenMode" },
-  { id: 31, thumbnail: "https://picsum.photos/seed/music19/320/180", title: "Lo-Fi Music Mix", duration: "60:00", channel: "LoFiBeats" },
-  { id: 32, thumbnail: "https://picsum.photos/seed/travel20/320/180", title: "Travel Vlog: Japan", duration: "55:00", channel: "GlobeTrotter" },
-  { id: 33, thumbnail: "https://picsum.photos/seed/art21/320/180", title: "Painting Tutorial", duration: "50:00", channel: "ArtStudio" },
-  { id: 34, thumbnail: "https://picsum.photos/seed/code22/320/180", title: "Learn JavaScript", duration: "90:00", channel: "DevHQ" },
-  { id: 35, thumbnail: "https://picsum.photos/seed/bird23/320/180", title: "Birds of Paradise", duration: "16:00", channel: "WildBirds" },
-  { id: 36, thumbnail: "https://picsum.photos/seed/river24/320/180", title: "River Kayaking", duration: "32:00", channel: "OutdoorX" },
-  { id: 37, thumbnail: "https://picsum.photos/seed/night25/320/180", title: "Night Sky Photography", duration: "38:00", channel: "StarGazer" },
-  { id: 38, thumbnail: "https://picsum.photos/seed/coffee26/320/180", title: "Coffee Art Tips", duration: "09:00", channel: "BrewMaster" },
-  { id: 39, thumbnail: "https://picsum.photos/seed/book27/320/180", title: "Book Review", duration: "20:00", channel: "ReadMore" },
-  { id: 40, thumbnail: "https://picsum.photos/seed/game28/320/180", title: "Gaming Highlights", duration: "42:00", channel: "ProGamer" },
-  { id: 41, thumbnail: "https://picsum.photos/seed/drone29/320/180", title: "Drone Footage", duration: "17:00", channel: "SkyView" },
-  { id: 42, thumbnail: "https://picsum.photos/seed/history30/320/180", title: "Ancient Civilizations", duration: "65:00", channel: "HistoryBuff" },
-  { id: 43, thumbnail: "https://picsum.photos/seed/garden31/320/180", title: "Garden Tips", duration: "23:00", channel: "GreenThumb" },
-  { id: 44, thumbnail: "https://picsum.photos/seed/fish32/320/180", title: "Deep Sea Creatures", duration: "44:00", channel: "OceanDepth" },
-  { id: 45, thumbnail: "https://picsum.photos/seed/bike33/320/180", title: "Mountain Biking", duration: "31:00", channel: "BikePro" },
-  { id: 46, thumbnail: "https://picsum.photos/seed/sky34/320/180", title: "Cloud Formations", duration: "07:00", channel: "WeatherNerd" },
-  { id: 47, thumbnail: "https://picsum.photos/seed/market35/320/180", title: "Street Market Tour", duration: "27:00", channel: "FoodieWalks" },
-  { id: 48, thumbnail: "https://picsum.photos/seed/dance36/320/180", title: "Dance Choreography", duration: "13:00", channel: "DanceFloor" },
-  { id: 49, thumbnail: "https://picsum.photos/seed/photo37/320/180", title: "Photography Masterclass", duration: "75:00", channel: "LensCraft" },
-  { id: 50, thumbnail: "https://picsum.photos/seed/desk38/320/180", title: "Desk Setup Tour", duration: "19:00", channel: "SetupGoals" },
-  { id: 51, thumbnail: "https://picsum.photos/seed/swim39/320/180", title: "Swimming Tips", duration: "36:00", channel: "AquaLife" },
-  { id: 52, thumbnail: "https://picsum.photos/seed/volcano40/320/180", title: "Volcanic Eruption", duration: "48:00", channel: "GeoWatch" },
-  { id: 53, thumbnail: "https://picsum.photos/seed/farm41/320/180", title: "Farm Life Vlog", duration: "53:00", channel: "RuralDays" },
-  { id: 54, thumbnail: "https://picsum.photos/seed/robot42/320/180", title: "AI & Robotics", duration: "58:00", channel: "FutureTech" },
-  { id: 55, thumbnail: "https://picsum.photos/seed/horse43/320/180", title: "Horse Riding Basics", duration: "41:00", channel: "EquineLife" },
-  { id: 56, thumbnail: "https://picsum.photos/seed/dessert44/320/180", title: "Chocolate Cake Recipe", duration: "26:00", channel: "SweetBakes" },
-  { id: 57, thumbnail: "https://picsum.photos/seed/waterfall45/320/180", title: "Waterfall Hike", duration: "33:00", channel: "NatureWalks" },
-  { id: 58, thumbnail: "https://picsum.photos/seed/candle46/320/180", title: "DIY Candle Making", duration: "21:00", channel: "CraftCorner" },
-  { id: 59, thumbnail: "https://picsum.photos/seed/castle47/320/180", title: "Castle Exploration", duration: "67:00", channel: "HistoricPlaces" },
-  { id: 60, thumbnail: "https://picsum.photos/seed/surf48/320/180", title: "Surfing Lessons", duration: "29:00", channel: "WaveRider" },
-  { id: 61, thumbnail: "https://picsum.photos/seed/jungle49/320/180", title: "Jungle Safari", duration: "72:00", channel: "WildExplorer" },
-  { id: 62, thumbnail: "https://picsum.photos/seed/aurora50/320/180", title: "Northern Lights", duration: "15:00", channel: "ArcticVision" },
 ];
-
-const buildUsersData = () => {
-  const users = {
-    // ✅ Manually added subscription channels
-    aajtak: {
-      name: "Aaj Tak",
-      handle: "@aajtak",
-      profilePic: "https://tse4.mm.bing.net/th/id/OIP.Auy5e_yPpkpidVF_ZRz7aQAAAA?w=404&h=316&rs=1&pid=ImgDetMain&o=7&rm=3",
-      about: "India's No.1 Hindi News Channel",
-    },
-    lallantop: {
-      name: "The LallanTop",
-      handle: "@lallantop",
-      profilePic: "https://tse1.mm.bing.net/th/id/OIP.At5eXfjQ0jLiO7tRFBjI_QAAAA?rs=1&pid=ImgDetMain&o=7&rm=3",
-      about: "Digital news platform by India Today Group",
-    },
-    ndtvindia: {
-      name: "NDTV India",
-      handle: "@ndtvindia",
-      profilePic: "https://logodix.com/logo/2131933.jpg",
-      about: "India's most trusted Hindi news channel",
-    },
-  };
-
-  // From reelsData
-  reelsData.forEach((reel) => {
-    const key = reel.username?.toLowerCase();
-    if (!key) return;
-    if (!users[key]) {
-      users[key] = {
-        name: reel.user,
-        handle: `@${reel.username}`,
-        profilePic: reel.profilePic,
-        about: `${reel.user}'s channel`,
-      };
-    }
-  });
-
-  // From allVideos (channel name as username key)
-  allVideos.forEach((video) => {
-    const key = video.channel?.toLowerCase();
-    if (!key) return;
-    if (!users[key]) {
-      users[key] = {
-        name: video.channel,
-        handle: `@${video.channel.toLowerCase()}`,
-        profilePic: `https://api.dicebear.com/7.x/initials/svg?seed=${video.channel}`,
-        about: `${video.channel}'s channel`,
-      };
-    }
-  });
-
-  return users;
-};
-
-const usersData = buildUsersData();
 
 const Profile = ({ sideNavbar }) => {
   const { username } = useParams();
   const key = username?.toLowerCase();
-  const user = usersData[key];
 
-  // ✅ Match reels by username
-  const userReels = reelsData.filter(
-    (r) => r.username?.toLowerCase() === key
-  );
+  const [user, setUser]           = useState(null);
+  const [dbVideos, setDbVideos]   = useState([]);
+  const [dbReels, setDbReels]     = useState([]);
+  const [loading, setLoading]     = useState(true);
 
-  // ✅ Match videos by channel name
-  const userVideos = allVideos.filter(
-    (v) => v.channel?.toLowerCase() === key
-  );
+  // Edit profile state
+  const [showEditProfile, setShowEditProfile] = useState(false);
+  const [editName, setEditName]   = useState("");
+  const [editAbout, setEditAbout] = useState("");
+  const [editPic, setEditPic]     = useState("");
+  const [editLoading, setEditLoading] = useState(false);
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      setLoading(true);
+
+      const loggedInUsername   = localStorage.getItem("username");
+      const loggedInProfilePic = localStorage.getItem("profilePic");
+      const loggedInAbout      = localStorage.getItem("about");
+      const loggedInEmail      = localStorage.getItem("email");
+
+      const isLoggedInUser =
+        loggedInUsername &&
+        loggedInUsername.toLowerCase().replace(/\s+/g, "_") === key;
+
+      if (isLoggedInUser) {
+        setUser({
+          name:       loggedInUsername,
+          handle:     `@${loggedInUsername}`,
+          profilePic: loggedInProfilePic ||
+            `https://ui-avatars.com/api/?name=${encodeURIComponent(loggedInUsername)}&background=ff0000&color=fff&size=120`,
+          about:      loggedInAbout || `${loggedInUsername}'s channel`,
+          email:      loggedInEmail,
+          isOwner:    true,
+        });
+      } else {
+        const { data: authData } = await supabase.auth.getUser();
+        const authUser = authData?.user;
+        const authUsername =
+          authUser?.user_metadata?.channelName ||
+          authUser?.user_metadata?.username;
+
+        if (authUsername &&
+            authUsername.toLowerCase().replace(/\s+/g, "_") === key) {
+          setUser({
+            name:       authUsername,
+            handle:     `@${authUsername}`,
+            profilePic: authUser.user_metadata?.profilePic ||
+              `https://ui-avatars.com/api/?name=${encodeURIComponent(authUsername)}&background=ff0000&color=fff&size=120`,
+            about:      authUser.user_metadata?.about || `${authUsername}'s channel`,
+            email:      authUser.email,
+            isOwner:    true,
+          });
+        } else {
+          const reelUser  = reelsData.find((r) => r.username?.toLowerCase() === key);
+          const videoUser = allVideos.find((v) => v.channel?.toLowerCase() === key);
+
+          if (reelUser) {
+            setUser({
+              name:       reelUser.user,
+              handle:     `@${reelUser.username}`,
+              profilePic: reelUser.profilePic ||
+                `https://api.dicebear.com/7.x/initials/svg?seed=${reelUser.user}`,
+              about:      `${reelUser.user}'s channel`,
+              isOwner:    false,
+            });
+          } else if (videoUser) {
+            setUser({
+              name:       videoUser.channel,
+              handle:     `@${videoUser.channel.toLowerCase()}`,
+              profilePic: `https://api.dicebear.com/7.x/initials/svg?seed=${videoUser.channel}`,
+              about:      `${videoUser.channel}'s channel`,
+              isOwner:    false,
+            });
+          } else {
+            setUser(null);
+          }
+        }
+      }
+
+      // Fetch DB videos
+      const { data: vData } = await supabase
+        .from("videos").select("*").order("created_at", { ascending: false });
+      if (vData) {
+        setDbVideos(
+          vData
+            .filter((v) =>
+              v.channel?.toLowerCase().replace(/\s+/g, "_") === key ||
+              v.channel?.toLowerCase() === key
+            )
+            .map((v) => ({
+              id: v.id, src: v.video_url, thumbnail: v.thumbnail_url,
+              title: v.title, duration: v.duration || "00:00", channel: v.channel,
+            }))
+        );
+      }
+
+      // Fetch DB reels
+      const { data: rData } = await supabase
+        .from("reels").select("*").order("created_at", { ascending: false });
+      if (rData) {
+        setDbReels(
+          rData
+            .filter((r) =>
+              r.username?.toLowerCase().replace(/\s+/g, "_") === key ||
+              r.username?.toLowerCase() === key ||
+              r.user?.toLowerCase().replace(/\s+/g, "_") === key
+            )
+            .map((r) => ({
+              id: r.id, src: r.video_url,
+              thumbnail: r.thumbnail || "https://picsum.photos/200/350?random=99",
+              title: r.title || "Untitled", duration: r.duration || "00:00",
+              description: r.description || "", username: r.username,
+            }))
+        );
+      }
+
+      setLoading(false);
+    };
+
+    loadProfile();
+  }, [key]);
+
+  const hardcodedReels  = reelsData.filter((r) => r.username?.toLowerCase() === key);
+  const hardcodedVideos = allVideos.filter((v) => v.channel?.toLowerCase() === key);
+  const allUserVideos   = [...dbVideos, ...hardcodedVideos];
+  const allUserReels    = [...dbReels, ...hardcodedReels];
+
+  const handleSaveProfile = async () => {
+    const newName  = editName.trim()  || user.name;
+    const newAbout = editAbout.trim() || user.about;
+    const newPic   = editPic.trim()   || user.profilePic;
+
+    localStorage.setItem("username",   newName);
+    localStorage.setItem("about",      newAbout);
+    localStorage.setItem("profilePic", newPic);
+
+    await supabase.auth.updateUser({
+      data: { channelName: newName, about: newAbout, profilePic: newPic },
+    });
+
+    setUser((prev) => ({
+      ...prev,
+      name: newName, about: newAbout,
+      profilePic: newPic, handle: `@${newName}`,
+    }));
+
+    setShowEditProfile(false);
+    setEditName(""); setEditAbout(""); setEditPic("");
+  };
+
+  if (loading) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center",
+        height: "60vh", color: "white", flexDirection: "column", gap: "16px" }}>
+        <div style={{ width: "40px", height: "40px", border: "4px solid #333",
+          borderTop: "4px solid #ff4444", borderRadius: "50%",
+          animation: "spin 0.8s linear infinite" }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
 
   if (!user) {
     return (
-      <div style={{ color: "white", padding: "20px", textAlign: "center" }}>
-        <h2>User not found!</h2>
-        <p style={{ color: "#aaa" }}>No profile exists for "@{username}"</p>
+      <div style={{ color: "white", padding: "40px", textAlign: "center", marginTop: "56px" }}>
+        <div style={{ fontSize: "48px", marginBottom: "16px" }}>👤</div>
+        <h2>No profile exists for "@{username}"</h2>
+        <p style={{ color: "#aaa" }}>This user hasn't signed up yet.</p>
+        <Link to="/" style={{ color: "#3ea6ff", textDecoration: "none", fontSize: "14px" }}>
+          ← Go Home
+        </Link>
       </div>
     );
   }
@@ -157,6 +207,15 @@ const Profile = ({ sideNavbar }) => {
 
       <div className={sideNavbar ? "profile_page" : "profile_page_inactive"}>
 
+        {/* ── Banner ── */}
+        <div style={{ width: "100%", height: "180px", background:
+          "linear-gradient(135deg, #1a1a2e, #16213e, #0f3460)",
+          borderRadius: "12px", marginBottom: "20px", position: "relative",
+          overflow: "hidden" }}>
+          <div style={{ position: "absolute", inset: 0, background:
+            "radial-gradient(circle at 30% 50%, rgba(255,0,0,0.15), transparent 60%)" }} />
+        </div>
+
         {/* ── Top Section ── */}
         <div className="profile_top_section">
           <div className="profile_top_section_profile">
@@ -164,41 +223,58 @@ const Profile = ({ sideNavbar }) => {
               className="profile_top_section_img"
               src={user.profilePic}
               alt={user.name}
+              onError={(e) => {
+                e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=ff0000&color=fff&size=120`;
+              }}
             />
           </div>
           <div className="profile_top_section_About">
             <div className="profile_top_section_About_Name">{user.name}</div>
             <div className="profile_top_section_info">
-              {user.handle} · {userVideos.length} videos · {userReels.length} reels
+              {user.handle} · {allUserVideos.length} videos · {allUserReels.length} reels
             </div>
             <div className="profile_top_section_info">{user.about}</div>
+
+            {user.isOwner && (
+              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "8px" }}>
+                <Link to="/763/upload"
+                  style={{ background: "#ff0000", color: "white", border: "none",
+                    borderRadius: "20px", padding: "8px 20px", fontSize: "14px",
+                    fontWeight: "600", cursor: "pointer", textDecoration: "none",
+                    display: "inline-block" }}>
+                  + Upload Video / Reel
+                </Link>
+                <button onClick={() => {
+                    setEditName(user.name);
+                    setEditAbout(user.about);
+                    setEditPic(user.profilePic);
+                    setShowEditProfile(true);
+                  }}
+                  style={{ background: "#272727", color: "white", border: "1px solid #555",
+                    borderRadius: "20px", padding: "8px 20px", fontSize: "14px",
+                    fontWeight: "600", cursor: "pointer" }}>
+                  ✏️ Edit Profile
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
         {/* ── Videos Section ── */}
-        {userVideos.length > 0 && (
+        {allUserVideos.length > 0 && (
           <div className="profile_videos">
             <div className="profile_videos_title">
-              Videos ({userVideos.length}) &nbsp; <ArrowRightIcon />
+              Videos ({allUserVideos.length}) &nbsp;<ArrowRightIcon />
             </div>
             <div className="profileVideos">
-              {userVideos.map((video) => (
-                <Link
-                  to={`/video/${video.id}`}
-                  key={video.id}
-                  className="profileVideo_block"
-                >
+              {allUserVideos.map((video) => (
+                <Link to={`/video/${video.id}`} key={video.id} className="profileVideo_block">
                   <div className="profileVideo_block_thumbnail" style={{ position: "relative" }}>
-                    <img
-                      className="profileVideo_block_thumbnail_img"
-                      src={video.thumbnail}
-                      alt={video.title}
-                    />
-                    <span style={{
-                      position: "absolute", bottom: "6px", right: "6px",
+                    <img className="profileVideo_block_thumbnail_img"
+                      src={video.thumbnail} alt={video.title} />
+                    <span style={{ position: "absolute", bottom: "6px", right: "6px",
                       background: "rgba(0,0,0,0.75)", color: "white",
-                      fontSize: "11px", padding: "2px 5px", borderRadius: "4px"
-                    }}>
+                      fontSize: "11px", padding: "2px 5px", borderRadius: "4px" }}>
                       {video.duration}
                     </span>
                   </div>
@@ -213,38 +289,26 @@ const Profile = ({ sideNavbar }) => {
         )}
 
         {/* ── Reels Section ── */}
-        {userReels.length > 0 && (
+        {allUserReels.length > 0 && (
           <div className="profile_videos" style={{ marginTop: "30px" }}>
             <div className="profile_videos_title">
-              Reels ({userReels.length}) &nbsp; <ArrowRightIcon />
+              Reels ({allUserReels.length}) &nbsp;<ArrowRightIcon />
             </div>
             <div className="profileVideos">
-              {userReels.map((reel) => (
-                <Link
-                  to="/reels"
-                  key={reel.id}
-                  className="profileVideo_block"
-                  state={{ reelId: reel.id }}
-                >
+              {allUserReels.map((reel) => (
+                <Link to="/reels" key={reel.id} className="profileVideo_block"
+                  state={{ reelId: reel.id }}>
                   <div className="profileVideo_block_thumbnail" style={{ position: "relative" }}>
-                    <img
-                      className="profileVideo_block_thumbnail_img"
-                      src={reel.thumbnail}
-                      alt={reel.title}
-                    />
-                    <span style={{
-                      position: "absolute", top: "6px", left: "6px",
-                      background: "rgba(0,0,0,0.7)", color: "white",
-                      fontSize: "10px", padding: "2px 6px",
-                      borderRadius: "4px", fontWeight: "600"
-                    }}>
+                    <img className="profileVideo_block_thumbnail_img"
+                      src={reel.thumbnail} alt={reel.title} />
+                    <span style={{ position: "absolute", top: "6px", left: "6px",
+                      background: "rgba(0,0,0,0.7)", color: "white", fontSize: "10px",
+                      padding: "2px 6px", borderRadius: "4px", fontWeight: "600" }}>
                       🎬 Reel
                     </span>
-                    <span style={{
-                      position: "absolute", bottom: "6px", right: "6px",
-                      background: "rgba(0,0,0,0.7)", color: "white",
-                      fontSize: "11px", padding: "2px 5px", borderRadius: "4px"
-                    }}>
+                    <span style={{ position: "absolute", bottom: "6px", right: "6px",
+                      background: "rgba(0,0,0,0.7)", color: "white", fontSize: "11px",
+                      padding: "2px 5px", borderRadius: "4px" }}>
                       {reel.duration}
                     </span>
                   </div>
@@ -258,14 +322,138 @@ const Profile = ({ sideNavbar }) => {
           </div>
         )}
 
-        {/* ── Empty State ── */}
-        {userVideos.length === 0 && userReels.length === 0 && (
+        {allUserVideos.length === 0 && allUserReels.length === 0 && (
           <div style={{ color: "#aaa", textAlign: "center", marginTop: "40px" }}>
             No videos or reels uploaded yet.
           </div>
         )}
 
       </div>
+
+      {/* ── Edit Profile Modal ── */}
+      {showEditProfile && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(0,0,0,0.85)", zIndex: 999999,
+          display: "flex", alignItems: "center", justifyContent: "center" }}
+          onClick={(e) => e.target === e.currentTarget && setShowEditProfile(false)}>
+          <div style={{ background: "#212121", borderRadius: "16px", padding: "32px",
+            width: "100%", maxWidth: "440px", border: "1px solid #333",
+            display: "flex", flexDirection: "column", gap: "16px" }}>
+
+            <h2 style={{ color: "white", margin: 0, fontSize: "20px" }}>✏️ Edit Profile</h2>
+
+            {/* Profile pic preview */}
+            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+              <img
+                src={editPic || user.profilePic}
+                alt="preview"
+                style={{ width: "72px", height: "72px", borderRadius: "50%",
+                  objectFit: "cover", border: "2px solid #ff0000" }}
+                onError={(e) => {
+                  e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(editName || user.name)}&background=ff0000&color=fff&size=72`;
+                }}
+              />
+              <div style={{ flex: 1 }}>
+                <p style={{ color: "#aaa", fontSize: "13px", margin: "0 0 6px" }}>
+                  Paste Image URL
+                </p>
+                <input
+                  value={editPic}
+                  onChange={(e) => setEditPic(e.target.value)}
+                  placeholder="https://..."
+                  style={{ width: "100%", background: "#2a2a2a", border: "1px solid #444",
+                    borderRadius: "8px", color: "white", padding: "8px 12px",
+                    fontSize: "13px", outline: "none", boxSizing: "border-box" }}
+                />
+              </div>
+            </div>
+
+            {/* Upload photo */}
+            <div>
+              <p style={{ color: "#aaa", fontSize: "13px", margin: "0 0 6px" }}>
+                Or upload a new photo:
+              </p>
+              <input type="file" accept="image/*"
+                onChange={async (e) => {
+                  const file = e.target.files[0];
+                  if (!file) return;
+                  setEditLoading(true);
+                  const formData = new FormData();
+                  formData.append("file", file);
+                  formData.append("upload_preset", "youtube-clone");
+                  try {
+                    const res = await fetch(
+                      "https://api.cloudinary.com/v1_1/dwoqk0yue/image/upload",
+                      { method: "POST", body: formData }
+                    );
+                    const data = await res.json();
+                    setEditPic(data.secure_url);
+                  } catch {
+                    alert("Upload failed. Try again.");
+                  }
+                  setEditLoading(false);
+                }}
+                style={{ color: "#aaa", fontSize: "13px" }}
+              />
+              {editLoading && (
+                <p style={{ color: "#ff9800", fontSize: "12px", margin: "4px 0 0" }}>
+                  Uploading photo...
+                </p>
+              )}
+            </div>
+
+            {/* Channel Name */}
+            <div>
+              <p style={{ color: "#aaa", fontSize: "13px", margin: "0 0 6px" }}>
+                Channel Name
+              </p>
+              <input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder={user.name}
+                style={{ width: "100%", background: "#2a2a2a", border: "1px solid #444",
+                  borderRadius: "8px", color: "white", padding: "10px 12px",
+                  fontSize: "14px", outline: "none", boxSizing: "border-box" }}
+              />
+            </div>
+
+            {/* About */}
+            <div>
+              <p style={{ color: "#aaa", fontSize: "13px", margin: "0 0 6px" }}>About</p>
+              <input
+                value={editAbout}
+                onChange={(e) => setEditAbout(e.target.value)}
+                placeholder={user.about}
+                style={{ width: "100%", background: "#2a2a2a", border: "1px solid #444",
+                  borderRadius: "8px", color: "white", padding: "10px 12px",
+                  fontSize: "14px", outline: "none", boxSizing: "border-box" }}
+              />
+            </div>
+
+            {/* Save / Cancel */}
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button onClick={handleSaveProfile} disabled={editLoading}
+                style={{ flex: 1, background: editLoading ? "#555" : "#ff0000",
+                  color: "white", border: "none", borderRadius: "8px", padding: "12px",
+                  fontSize: "15px", fontWeight: "700",
+                  cursor: editLoading ? "not-allowed" : "pointer" }}>
+                {editLoading ? "Uploading..." : "Save Changes"}
+              </button>
+              <button onClick={() => {
+                  setShowEditProfile(false);
+                  setEditName(""); setEditAbout(""); setEditPic("");
+                }}
+                style={{ flex: 1, background: "none", border: "1px solid #555",
+                  color: "#aaa", borderRadius: "8px", padding: "12px",
+                  fontSize: "14px", cursor: "pointer" }}>
+                Cancel
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

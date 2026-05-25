@@ -12,6 +12,7 @@ import HistoryIcon from "@mui/icons-material/History";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import Login from "../Login/login";
 import YouTubeIcon from "@mui/icons-material/YouTube";
+import { supabase } from "../../config/supabase";
 
 // ─── Country Code Hook ─────────────────────────────────────────────────────────
 const useCountry = () => {
@@ -272,6 +273,7 @@ const getNotifStyle = (type) => {
 // ─── Main Navbar ───────────────────────────────────────────────────────────────
 const Navbar = ({
   currentUser,
+  setCurrentUser,
   setSideNavbarFunc,
   sideNavbar,
   notifications,
@@ -281,9 +283,21 @@ const Navbar = ({
   const location = useLocation();
   const countryCode = useCountry();
 
-  const [userPic] = useState(
-    "https://athenabpo.com/wp-content/uploads/2016/09/Headshot-Blank-Person-Circle-300x300.gif",
+  const [userPic, setUserPic] = useState(
+    "https://ui-avatars.com/api/?name=User&background=444&color=fff&size=40",
   );
+
+  useEffect(() => {
+    if (currentUser) {
+      setUserPic(
+        `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser)}&background=ff0000&color=fff&size=40`,
+      );
+    } else {
+      setUserPic(
+        "https://athenabpo.com/wp-content/uploads/2016/09/Headshot-Blank-Person-Circle-300x300.gif",
+      );
+    }
+  }, [currentUser]);
   const [navbarModal, setNavbarModal] = useState(false);
   const [login, setLogin] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -352,6 +366,18 @@ const Navbar = ({
     else setLogin(true);
     setNavbarModal(false);
   };
+
+  const handleLogout = async () => {
+  await supabase.auth.signOut();
+  localStorage.removeItem("username");
+  localStorage.removeItem("email");
+  localStorage.removeItem("userId");
+  localStorage.removeItem("profilePic");
+  localStorage.removeItem("about");
+  setCurrentUser(null);   // ← ADD THIS
+  setNavbarModal(false);
+  navigate("/");
+};
 
   const setLoginModal = () => setLogin(false);
   const onclickOfPopUpOption = (button) => {
@@ -1019,13 +1045,13 @@ const Navbar = ({
         </span>
 
         {/* <span
-          onClick={() =>
-            navigate("/youtube", { state: { reload: Date.now() } })
-          }
-          style={{ cursor: "pointer" }}
-        >
-          <YouTubeIcon sx={{ fontSize: "30px", color: "red" }} />
-        </span> */}
+            onClick={() =>
+              navigate("/youtube", { state: { reload: Date.now() } })
+            }
+            style={{ cursor: "pointer" }}
+          >
+            <YouTubeIcon sx={{ fontSize: "30px", color: "red" }} />
+          </span> */}
 
         <span
           onClick={() => navigate("/763/upload")}
@@ -1236,6 +1262,7 @@ const Navbar = ({
         />
         {navbarModal && (
           <div className="navbar-modal">
+            {/* Show username if logged in */}
             {currentUser && (
               <div
                 style={{
@@ -1246,29 +1273,47 @@ const Navbar = ({
                   pointerEvents: "none",
                 }}
               >
-                @{currentUser}
+                👤 @{currentUser}
               </div>
             )}
+
             <div className="navbar-modal-option" onClick={handleprofile}>
-              Profile
+              🙍 Profile
             </div>
-            <div
-              className="navbar-modal-option"
-              onClick={() => onclickOfPopUpOption("logout")}
-            >
-              Logout
-            </div>
-            <div
-              className="navbar-modal-option"
-              onClick={() => onclickOfPopUpOption("login")}
-            >
-              Login
-            </div>
+
+            {currentUser ? (
+              <div
+                className="navbar-modal-option"
+                onClick={handleLogout}
+                style={{ color: "#ff4444" }}
+              >
+                🚪 Logout
+              </div>
+            ) : (
+              <div
+                className="navbar-modal-option"
+                onClick={() => {
+                  setLogin(true);
+                  setNavbarModal(false);
+                }}
+              >
+                🔑 Login
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {login && <Login setLoginModal={setLoginModal} />}
+      {login && (
+  <Login
+    key={Date.now()}
+    setLoginModal={setLoginModal}
+    onLoginSuccess={(name) => {
+      setCurrentUser(name);
+      setLogin(false);
+    }}
+  />
+)}
 
       {/* Voice overlay */}
       {isListening && (

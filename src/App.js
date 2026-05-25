@@ -21,11 +21,43 @@ import Feedback from './Pages/Feedback/feedback'
 import Help from './Pages/Help/help'
 import ContactSupport from './Pages/ContactSupport/contactSupport'
 import ReportProblem from './Pages/ReportProblem/reportProblem'
+import { useEffect } from "react"
+import { supabase } from "./config/supabase"
 
 function App() {
   const location = useLocation();
   const [sideNavbar, setSideNavbar] = useState(false);
-  const [currentUser, setCurrentUser] = useState("jyoti");
+  const [currentUser, setCurrentUser] = useState(
+  localStorage.getItem("username") || null
+);
+
+// Listen for auth changes
+useEffect(() => {
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    if (session?.user) {
+      const name = session.user.user_metadata?.username || 
+                   session.user.email.split("@")[0];
+      setCurrentUser(name);
+      localStorage.setItem("username", name);
+    }
+  });
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    (_event, session) => {
+      if (session?.user) {
+        const name = session.user.user_metadata?.username || 
+                     session.user.email.split("@")[0];
+        setCurrentUser(name);
+        localStorage.setItem("username", name);
+      } else {
+        setCurrentUser(null);
+        localStorage.removeItem("username");
+        localStorage.removeItem("email");
+        localStorage.removeItem("userId");
+      }
+    }
+  );
+  return () => subscription.unsubscribe();
+}, []);
 
   const [notifications, setNotifications] = useState([
     { id: 1, type: "upload",     message: "TechWorld uploaded: 'React 19 Features'",      time: "2m ago",  read: false, avatar: "T" },
@@ -45,6 +77,7 @@ function App() {
 
       <Navbar
         currentUser={currentUser}
+        setCurrentUser={setCurrentUser}
         setSideNavbarFunc={setSideNavbar}
         sideNavbar={sideNavbar}
         notifications={notifications}
