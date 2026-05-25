@@ -61,7 +61,7 @@ const Login = ({ setLoginModal, onLoginSuccess }) => {
   await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: "http://localhost:3000/zixplon/",
+      redirectTo: "https://zixplon-tawny.vercel.app/",
     },
   });
 };
