@@ -68,17 +68,19 @@ const getVideoType = (src) => {
 
 const ReelItem = ({ reel }) => {
   const videoRef = useRef(null);
-  const [subscribed, setSubscribed] = useState(false);
   const containerRef = useRef(null);
+  const isMounted = useRef(true);
+  const observerRef = useRef(null);
+  const iconTimeoutRef = useRef(null);
+
+  const loggedInUser = localStorage.getItem("username") || "Guest";
+
+  const [subscribed, setSubscribed] = useState(false);
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(reel.likes || 0);
   const [muted, setMuted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showIcon, setShowIcon] = useState(false);
-  const isMounted = useRef(true);
-  const observerRef = useRef(null);
-  const iconTimeoutRef = useRef(null);
-  const loggedInUser = localStorage.getItem("username") || "Guest";
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [comments, setComments] = useState([
@@ -87,6 +89,7 @@ const ReelItem = ({ reel }) => {
   ]);
   const [shareToast, setShareToast] = useState(false);
 
+  // ✅ Load like status
   useEffect(() => {
     const loadLike = async () => {
       const userId = localStorage.getItem("userId");
@@ -101,27 +104,93 @@ const ReelItem = ({ reel }) => {
     loadLike();
   }, [reel.id]);
 
+  // ✅ Load subscription status from Supabase
+  useEffect(() => {
+    const loadSubscription = async () => {
+      const userId = localStorage.getItem("userId");
+      if (!userId) return;
+      const { data } = await supabase
+        .from("subscriptions")
+        .select("id")
+        .match({ subscriber_id: userId, subscribed_to: reel.username })
+        .single();
+      setSubscribed(!!data);
+    };
+    loadSubscription();
+  }, [reel.username]);
+
+  // ✅ Load comments from Supabase
+  useEffect(() => {
+    const loadComments = async () => {
+      const { data } = await supabase
+        .from("comments")
+        .select("*")
+        .match({ content_id: String(reel.id), content_type: "reel" })
+        .order("created_at", { ascending: false });
+      if (data && data.length > 0) {
+        setComments(
+          data.map((c) => ({
+            id: c.id,
+            user: c.username,
+            text: c.text,
+            date: c.created_at?.slice(0, 10),
+          }))
+        );
+      }
+    };
+    loadComments();
+  }, [reel.id]);
+
+  // ✅ Handle Subscribe / Unsubscribe with Supabase
+  const handleSubscribe = async (e) => {
+    e.preventDefault();
+    const userId = localStorage.getItem("userId");
+    if (!userId) {
+      alert("Please login to subscribe");
+      return;
+    }
+    // Prevent subscribing to yourself
+    if (userId === reel.username) {
+      alert("You cannot subscribe to yourself");
+      return;
+    }
+    if (subscribed) {
+      // Unsubscribe
+      await supabase
+        .from("subscriptions")
+        .delete()
+        .match({ subscriber_id: userId, subscribed_to: reel.username });
+      setSubscribed(false);
+    } else {
+      // Subscribe
+      const { error } = await supabase
+        .from("subscriptions")
+        .insert({ subscriber_id: userId, subscribed_to: reel.username });
+      if (!error) setSubscribed(true);
+    }
+  };
+
   const handleCommentSubmit = async () => {
-  if (!commentText.trim()) return;
-  const userId = localStorage.getItem("userId");
-  if (!userId) { alert("Please login to comment"); return; }
-  const { data, error } = await supabase.from("comments").insert({
-    user_id: userId,
-    username: loggedInUser,
-    content_id: String(reel.id),
-    content_type: "reel",
-    text: commentText,
-  }).select().single();
-  if (!error && data) {
-    setComments((prev) => [{
-      id: data.id,
-      user: data.username,
-      text: data.text,
-      date: data.created_at?.slice(0, 10),
-    }, ...prev]);
-  }
-  setCommentText("");
-};
+    if (!commentText.trim()) return;
+    const userId = localStorage.getItem("userId");
+    if (!userId) { alert("Please login to comment"); return; }
+    const { data, error } = await supabase.from("comments").insert({
+      user_id: userId,
+      username: loggedInUser,
+      content_id: String(reel.id),
+      content_type: "reel",
+      text: commentText,
+    }).select().single();
+    if (!error && data) {
+      setComments((prev) => [{
+        id: data.id,
+        user: data.username,
+        text: data.text,
+        date: data.created_at?.slice(0, 10),
+      }, ...prev]);
+    }
+    setCommentText("");
+  };
 
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href).catch(() => {});
@@ -194,13 +263,6 @@ const ReelItem = ({ reel }) => {
     flashIcon();
   };
 
-  const toggleMute = () => {
-    const video = videoRef.current;
-    if (!video) return;
-    video.muted = !video.muted;
-    setMuted(video.muted);
-  };
-
   const handleLike = async () => {
     const userId = localStorage.getItem("userId");
     if (!userId) { alert("Please login to like"); return; }
@@ -255,7 +317,14 @@ const ReelItem = ({ reel }) => {
         {showComments && (
           <div className="reel_comment_panel">
             <div className="reel_comment_input_row">
-              <input type="text" value={commentText} onChange={(e) => setCommentText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleCommentSubmit()} placeholder="Add a comment..." className="reel_comment_input" />
+              <input
+                type="text"
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleCommentSubmit()}
+                placeholder="Add a comment..."
+                className="reel_comment_input"
+              />
               <button className="reel_comment_submit" onClick={handleCommentSubmit}>Post</button>
             </div>
             <div className="reel_comment_list">
@@ -279,7 +348,12 @@ const ReelItem = ({ reel }) => {
             <Link to={`/user/${reel.username}`} style={{ textDecoration: "none", color: "white" }}>
               <span className="reel_username">{reel.user}</span>
             </Link>
-            <button className="reel_subscribe_btn" onClick={(e) => { e.preventDefault(); setSubscribed((prev) => !prev); }} style={{ background: subscribed ? "#555" : "#ff0000", color: "white" }}>
+            {/* ✅ Subscribe button now connected to Supabase */}
+            <button
+              className="reel_subscribe_btn"
+              onClick={handleSubscribe}
+              style={{ background: subscribed ? "#555" : "#ff0000", color: "white" }}
+            >
               {subscribed ? "Subscribed" : "Subscribe"}
             </button>
           </div>
@@ -396,25 +470,6 @@ const Reels = () => {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
-
-  useEffect(() => {
-  const loadComments = async () => {
-    const { data } = await supabase
-      .from("comments")
-      .select("*")
-      .match({ content_id: String(reel.id), content_type: "reel" })
-      .order("created_at", { ascending: false });
-    if (data && data.length > 0) {
-      setComments(data.map((c) => ({
-        id: c.id,
-        user: c.username,
-        text: c.text,
-        date: c.created_at?.slice(0, 10),
-      })));
-    }
-  };
-  loadComments();
-}, [reel.id]);
 
   return (
     <div className="reels_container">
