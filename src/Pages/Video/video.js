@@ -25,7 +25,6 @@ const getVideoType = (src) => {
 
 const isUnsupportedFormat = (src) => {
   if (!src) return false;
-  // Cloudinary/Supabase URLs — always safe
   if (src.includes("cloudinary.com") || src.includes("supabase")) return false;
   const ext = src.split(".").pop().split("?")[0].toLowerCase();
   return ["avi", "wmv", "mkv", "flv"].includes(ext);
@@ -105,7 +104,6 @@ const Video = () => {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  // ── Supabase: fetch uploaded videos ──
   const [allVideos, setAllVideos] = useState(hardcodedVideos);
   const [dbLoading, setDbLoading] = useState(true);
 
@@ -116,18 +114,16 @@ const Video = () => {
         .from("videos")
         .select("*")
         .order("created_at", { ascending: false });
-
       if (!error && data && data.length > 0) {
         const formatted = data.map((v) => ({
-          id:        v.id,
-          src:       v.video_url,
+          id: v.id,
+          src: v.video_url,
           thumbnail: v.thumbnail_url,
-          title:     v.title,
-          duration:  v.duration || "00:00",  // ← was hardcoded "00:00"
-          channel:   v.channel,
-          tags:      [v.category || "All"],
+          title: v.title,
+          duration: v.duration || "00:00",
+          channel: v.channel,
+          tags: [v.category || "All"],
         }));
-        // DB videos first, then hardcoded
         setAllVideos([...formatted, ...hardcodedVideos]);
       }
       setDbLoading(false);
@@ -136,26 +132,25 @@ const Video = () => {
   }, []);
 
   const [subscribedChannels, setSubscribedChannels] = useState(new Set());
-  const [message, setMessage]       = useState("");
-  const [autoPlay, setAutoPlay]     = useState(true);
+  const [message, setMessage] = useState("");
+  const [autoPlay, setAutoPlay] = useState(true);
   const [showControls, setShowControls] = useState(true);
   const [videoError, setVideoError] = useState(false);
-  const [liked, setLiked]           = useState(false);
-  const [likeCount, setLikeCount]   = useState(32);
-  const [disliked, setDisliked]     = useState(false);
+  const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const [disliked, setDisliked] = useState(false);
   const [shareToast, setShareToast] = useState(false);
   const [allComments, setAllComments] = useState({});
 
   const loggedInUser = localStorage.getItem("username") || "Guest";
-  const comments     = allComments[id] ?? defaultComments;
+  const comments = allComments[id] ?? defaultComments;
   const controlsTimer = useRef(null);
-  const videoRef      = useRef(null);
+  const videoRef = useRef(null);
 
-  // ── Use allVideos (DB + hardcoded) for lookup ──
   const currentIndex = allVideos.findIndex((v) => String(v.id) === String(id));
-  const video        = allVideos[currentIndex];
-  const nextVideo    = allVideos[currentIndex + 1] || allVideos[0];
-  const prevVideo    = allVideos[currentIndex - 1] || allVideos[allVideos.length - 1];
+  const video = allVideos[currentIndex];
+  const nextVideo = allVideos[currentIndex + 1] || allVideos[0];
+  const prevVideo = allVideos[currentIndex - 1] || allVideos[allVideos.length - 1];
   const isSubscribed = subscribedChannels.has(video?.channel);
 
   const handleSubscribe = () => {
@@ -179,10 +174,19 @@ const Video = () => {
 
   const handleVideoError = () => setVideoError(true);
 
-  const handleLike = () => {
-    setLiked((prev) => !prev);
-    setLikeCount((c) => liked ? c - 1 : c + 1);
-    if (!liked && disliked) setDisliked(false);
+  const handleLike = async () => {
+    const userId = localStorage.getItem("userId");
+    if (!userId) { alert("Please login to like"); return; }
+    if (liked) {
+      await supabase.from("likes").delete().match({ user_id: userId, content_id: String(id), content_type: "video" });
+      setLiked(false);
+      setLikeCount(c => c - 1);
+    } else {
+      await supabase.from("likes").insert({ user_id: userId, content_id: String(id), content_type: "video" });
+      setLiked(true);
+      setLikeCount(c => c + 1);
+      if (disliked) setDisliked(false);
+    }
   };
 
   const handleDislike = () => {
@@ -234,13 +238,30 @@ const Video = () => {
   }, []);
 
   useEffect(() => {
-    setLiked(false);
+    const loadLikes = async () => {
+      const userId = localStorage.getItem("userId");
+      const { count } = await supabase
+        .from("likes")
+        .select("*", { count: "exact", head: true })
+        .match({ content_id: String(id), content_type: "video" });
+      setLikeCount(count || 0);
+      if (userId) {
+        const { data } = await supabase
+          .from("likes")
+          .select("id")
+          .match({ user_id: userId, content_id: String(id), content_type: "video" })
+          .single();
+        setLiked(!!data);
+      }
+    };
+    loadLikes();
+  }, [id]);
+
+  useEffect(() => {
     setDisliked(false);
-    setLikeCount(32);
     setVideoError(false);
   }, [id]);
 
-  // ── Loading state while fetching DB videos ──
   if (dbLoading) {
     return (
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh", color: "white", flexDirection: "column", gap: "16px" }}>
@@ -263,16 +284,12 @@ const Video = () => {
   }
 
   const suggestions = allVideos.filter((v) => String(v.id) !== String(id));
-  const formatName  = video.src?.split(".").pop().split("?")[0].toUpperCase();
+  const formatName = video.src?.split(".").pop().split("?")[0].toUpperCase();
 
   return (
     <div className="video">
       <div className="videoPostSection">
-        <div
-          className="video_player_wrapper"
-          onMouseMove={handleMouseMove}
-          onMouseEnter={handleMouseMove}
-        >
+        <div className="video_player_wrapper" onMouseMove={handleMouseMove} onMouseEnter={handleMouseMove}>
           <div className={`video_controls_bar ${showControls ? "visible" : "hidden"}`}>
             <button className="video_nav_btn" onClick={() => navigate(`/video/${prevVideo.id}`)}>⏮ Prev</button>
             <div className="video_autoplay_toggle">
@@ -285,54 +302,34 @@ const Video = () => {
           </div>
 
           {isUnsupportedFormat(video.src) && !videoError && (
-  <div style={{ background: "#ff4444", color: "white", padding: "10px 16px", borderRadius: "6px", marginBottom: "8px", fontSize: "14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-    <span>⚠️ <strong>{formatName}</strong> format may not be supported. If video plays fine, ignore this.</span>
-    <button onClick={() => setVideoError(false)} style={{ background: "none", border: "1px solid white", color: "white", cursor: "pointer", borderRadius: "4px", padding: "2px 10px", marginLeft: "12px" }}>✕</button>
-  </div>
-)}
+            <div style={{ background: "#ff4444", color: "white", padding: "10px 16px", borderRadius: "6px", marginBottom: "8px", fontSize: "14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span>⚠️ <strong>{formatName}</strong> format may not be supported.</span>
+              <button onClick={() => setVideoError(false)} style={{ background: "none", border: "1px solid white", color: "white", cursor: "pointer", borderRadius: "4px", padding: "2px 10px", marginLeft: "12px" }}>✕</button>
+            </div>
+          )}
 
-{videoError && (
-  <div style={{ background: "#ff8800", color: "white", padding: "10px 16px", borderRadius: "6px", marginBottom: "8px", fontSize: "14px" }}>
-    ⚠️ This video could not be played. Please try a different format.
-  </div>
-)}
+          {videoError && (
+            <div style={{ background: "#ff8800", color: "white", padding: "10px 16px", borderRadius: "6px", marginBottom: "8px", fontSize: "14px" }}>
+              ⚠️ This video could not be played. Please try a different format.
+            </div>
+          )}
 
-          <video
-            ref={videoRef}
-            key={video.id}
-            controls
-            autoPlay
-            className="video_youtube_video"
-            onEnded={handleVideoEnd}
-            onError={handleVideoError}
-            preload="auto"
-            poster={video.thumbnail}
-          >
+          <video ref={videoRef} key={video.id} controls autoPlay className="video_youtube_video" onEnded={handleVideoEnd} onError={handleVideoError} preload="auto" poster={video.thumbnail}>
             <source src={video.src} type={getVideoType(video.src)} />
             Your browser does not support the video tag.
           </video>
 
           <div className="video_frame_actions">
-            <div
-              className={`video_frame_btn video_like_btn ${liked ? "video_liked" : ""}`}
-              onClick={handleLike}
-              title="Like"
-            >
+            <div className={`video_frame_btn video_like_btn ${liked ? "video_liked" : ""}`} onClick={handleLike} title="Like">
               <span className="video_like_inner">
                 <ThumbUpOutlinedIcon fontSize="small" style={{ color: liked ? "#ff0000" : "white" }} />
                 <span>{likeCount}</span>
               </span>
               <span className="video_like_emoji">😊</span>
             </div>
-
-            <div
-              className={`video_frame_btn ${disliked ? "active" : ""}`}
-              onClick={handleDislike}
-              title="Dislike"
-            >
+            <div className={`video_frame_btn ${disliked ? "active" : ""}`} onClick={handleDislike} title="Dislike">
               <ThumbDownAltOutlinedIcon fontSize="small" />
             </div>
-
             <div className="video_frame_btn" onClick={handleShare} title="Share">
               <ShareIcon fontSize="small" />
               <span>Share</span>
@@ -340,7 +337,6 @@ const Video = () => {
           </div>
         </div>
 
-        {/* ── Up Next Preview ── */}
         <Link to={`/video/${nextVideo.id}`} className="next_video_preview" style={{ textDecoration: "none" }}>
           <span className="next_video_label">▶ Up Next</span>
           <img src={nextVideo.thumbnail} alt={nextVideo.title} className="next_video_thumb" />
@@ -351,10 +347,8 @@ const Video = () => {
           </div>
         </Link>
 
-        {/* ── Video Info ── */}
         <div className="video_youtubeAbout">
           <div className="video_uTubeTitle">{video.title}</div>
-
           <div className="youtube_video_ProfileBlock">
             <div className="youtube_video_ProfileBlock_left">
               <Link to={`/user/${video.channel.toLowerCase()}`} className="youtube_video_ProfileBlock_left_img">
@@ -366,11 +360,7 @@ const Video = () => {
                 </Link>
                 <div className="youtubePostProfileSubs">2024-07-09</div>
               </div>
-              <div
-                className="subscribeBtnYoutube"
-                onClick={handleSubscribe}
-                style={{ background: isSubscribed ? "#555" : "#ff0000", cursor: "pointer", color: "white" }}
-              >
+              <div className="subscribeBtnYoutube" onClick={handleSubscribe} style={{ background: isSubscribed ? "#555" : "#ff0000", cursor: "pointer", color: "white" }}>
                 {isSubscribed ? "Subscribed" : "Subscribe"}
               </div>
             </div>
@@ -387,20 +377,12 @@ const Video = () => {
             <div>This is the cool video</div>
           </div>
 
-          {/* ── Comments ── */}
           <div className="youtubeCommentSection">
             <div className="youtubeCommentSectionTitle">{comments.length} Comments</div>
             <div className="youtubeSelfComment">
               <img className="video_youtubeSelfCommentProfile" src="https://th.bing.com/th/id/OIP.8gLtXrl4KYPfPA6QyMnlUwHaEK?w=304&h=180&c=7&pid=1.7" alt="self" />
               <div className="addAComment">
-                <input
-                  type="text"
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  className="addACommentInput"
-                  placeholder="Add a comment"
-                  onKeyDown={(e) => e.key === "Enter" && handleCommentSubmit()}
-                />
+                <input type="text" value={message} onChange={(e) => setMessage(e.target.value)} className="addACommentInput" placeholder="Add a comment" onKeyDown={(e) => e.key === "Enter" && handleCommentSubmit()} />
                 <div className="cancelSubmitComment">
                   <div className="cancelcomment" onClick={() => setMessage("")}>Cancel</div>
                   <div className="cancelcomment" onClick={handleCommentSubmit}>Comment</div>
@@ -425,7 +407,6 @@ const Video = () => {
         </div>
       </div>
 
-      {/* ── Suggestions Sidebar ── */}
       <div className="videoSuggestions" style={{ overflowY: "scroll", scrollbarWidth: "none" }}>
         {suggestions.map((suggestion) => (
           <Link to={`/video/${suggestion.id}`} key={suggestion.id} className="videoSuggestionsBlock" style={{ textDecoration: "none", color: "inherit" }}>
