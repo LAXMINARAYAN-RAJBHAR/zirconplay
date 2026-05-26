@@ -1547,6 +1547,31 @@ const HomePage = ({ sideNavbar }) => {
   const [dbLoading, setDbLoading] = useState(true);
   const [dbReels, setDbReels] = useState([]);
 
+  // ── NEW: track which video IDs the current user has watched ──
+  const [watchedVideos, setWatchedVideos] = useState(() => {
+    try {
+      const stored = localStorage.getItem("watchedVideos");
+      return new Set(stored ? JSON.parse(stored) : []);
+    } catch {
+      return new Set();
+    }
+  });
+
+  // Call this whenever a user navigates to a video
+  const markAsWatched = (videoId) => {
+    setWatchedVideos((prev) => {
+      const next = new Set(prev);
+      next.add(String(videoId));
+      try {
+        localStorage.setItem("watchedVideos", JSON.stringify([...next]));
+      } catch {
+        // localStorage unavailable — fail silently
+      }
+      return next;
+    });
+  };
+  // ─────────────────────────────────────────────────────────────
+
   const options = [
     "All",
     "DD News",
@@ -1778,12 +1803,12 @@ const HomePage = ({ sideNavbar }) => {
             className="homePage_shortCard"
             style={{ cursor: "pointer" }}
             onClick={() => {
-  navigate("/reels", {
-    state: {
-      clickedReel: short,  // pass full object
-    },
-  });
-}}
+              navigate("/reels", {
+                state: {
+                  clickedReel: short,
+                },
+              });
+            }}
           >
             <div className="homePage_shortThumbnail">
               <img
@@ -1812,57 +1837,71 @@ const HomePage = ({ sideNavbar }) => {
     </div>
   );
 
-  const VideoCard = ({ video, isUploaded = false }) => (
-    <div className="youtube_thumbnailBox">
-      <Link to={`/video/${video.id}`} className="youtube_thumbnailWrapper">
-        <img
-          src={video.thumbnail}
-          alt={video.title}
-          className="youtube_thumbnailPic"
-        />
-        <div className="youtube_timingThumbnail">{video.duration}</div>
-        {isUploaded && (
-          <div
-            style={{
-              position: "absolute",
-              top: "8px",
-              left: "8px",
-              background: "#ff6600",
-              color: "white",
-              fontSize: "10px",
-              fontWeight: "700",
-              padding: "2px 7px",
-              borderRadius: "4px",
-            }}
-          >
-            New
-          </div>
-        )}
-        <div className="youtube_playOverlay">
-          <div className="youtube_playButton">▶</div>
-        </div>
-      </Link>
-      <div className="youtubeTitleBox">
-        <div className="youtubeBoxProfile">
+  // ── UPDATED VideoCard: "New" badge disappears after first watch ──
+  const VideoCard = ({ video, isUploaded = false }) => {
+    // Show "New" only if the video is an uploaded one AND not yet watched
+    const isNew = isUploaded && !watchedVideos.has(String(video.id));
+
+    return (
+      <div className="youtube_thumbnailBox">
+        <Link
+          to={`/video/${video.id}`}
+          className="youtube_thumbnailWrapper"
+          onClick={() => markAsWatched(video.id)}
+        >
           <img
-            src={`https://api.dicebear.com/7.x/initials/svg?seed=${video.channel}`}
-            alt={video.channel}
-            className="youtube_thumbnail_Profile"
+            src={video.thumbnail}
+            alt={video.title}
+            className="youtube_thumbnailPic"
           />
-          <Link
-            to={`/user/${video.channel.toLowerCase()}`}
-            style={{ textDecoration: "none", color: "inherit" }}
-          >
-            <p className="youtube_ChannelName">{video.channel}</p>
-          </Link>
-        </div>
-        <div className="youtubeVideoInfo">
-          <p className="youtube_videoTitle">{video.title}</p>
-          <p className="youtubeVideo_Views">3 Likes</p>
+          <div className="youtube_timingThumbnail">{video.duration}</div>
+
+          {/* "New" badge — only shown when isNew is true */}
+          {isNew && (
+            <div
+              style={{
+                position: "absolute",
+                top: "8px",
+                left: "8px",
+                background: "#ff6600",
+                color: "white",
+                fontSize: "10px",
+                fontWeight: "700",
+                padding: "2px 7px",
+                borderRadius: "4px",
+              }}
+            >
+              New
+            </div>
+          )}
+
+          <div className="youtube_playOverlay">
+            <div className="youtube_playButton">▶</div>
+          </div>
+        </Link>
+        <div className="youtubeTitleBox">
+          <div className="youtubeBoxProfile">
+            <img
+              src={`https://api.dicebear.com/7.x/initials/svg?seed=${video.channel}`}
+              alt={video.channel}
+              className="youtube_thumbnail_Profile"
+            />
+            <Link
+              to={`/user/${video.channel.toLowerCase()}`}
+              style={{ textDecoration: "none", color: "inherit" }}
+            >
+              <p className="youtube_ChannelName">{video.channel}</p>
+            </Link>
+          </div>
+          <div className="youtubeVideoInfo">
+            <p className="youtube_videoTitle">{video.title}</p>
+            <p className="youtubeVideo_Views">3 Likes</p>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
+  // ─────────────────────────────────────────────────────────────
 
   const YouTubeVideoCard = ({ item }) => (
     <div
