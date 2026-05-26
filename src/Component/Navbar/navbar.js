@@ -4,7 +4,7 @@ import ListIcon from "@mui/icons-material/List";
 import PublicIcon from "@mui/icons-material/Public";
 import SearchIcon from "@mui/icons-material/Search";
 import KeyboardVoiceIcon from "@mui/icons-material/KeyboardVoice";
-import VideoCameraFrontIcon from "@mui/icons-material/VideoCameraFront";
+import VideoCallIcon from "@mui/icons-material/VideoCall";
 import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import WhatshotIcon from "@mui/icons-material/Whatshot";
@@ -368,16 +368,16 @@ const Navbar = ({
   };
 
   const handleLogout = async () => {
-  await supabase.auth.signOut();
-  localStorage.removeItem("username");
-  localStorage.removeItem("email");
-  localStorage.removeItem("userId");
-  localStorage.removeItem("profilePic");
-  localStorage.removeItem("about");
-  setCurrentUser(null);   // ← ADD THIS
-  setNavbarModal(false);
-  navigate("/");
-};
+    await supabase.auth.signOut();
+    localStorage.removeItem("username");
+    localStorage.removeItem("email");
+    localStorage.removeItem("userId");
+    localStorage.removeItem("profilePic");
+    localStorage.removeItem("about");
+    setCurrentUser(null); // ← ADD THIS
+    setNavbarModal(false);
+    navigate("/");
+  };
 
   const setLoginModal = () => setLogin(false);
   const onclickOfPopUpOption = (button) => {
@@ -1057,7 +1057,7 @@ const Navbar = ({
           onClick={() => navigate("/763/upload")}
           style={{ cursor: "pointer" }}
         >
-          <VideoCameraFrontIcon sx={{ fontSize: "30px", color: "white" }} />
+          <VideoCallIcon sx={{ fontSize: "30px", color: "white" }} />
         </span>
 
         {/* Notifications */}
@@ -1305,15 +1305,15 @@ const Navbar = ({
       </div>
 
       {login && (
-  <Login
-    key={Date.now()}
-    setLoginModal={setLoginModal}
-    onLoginSuccess={(name) => {
-      setCurrentUser(name);
-      setLogin(false);
-    }}
-  />
-)}
+        <Login
+          key={Date.now()}
+          setLoginModal={setLoginModal}
+          onLoginSuccess={(name) => {
+            setCurrentUser(name);
+            setLogin(false);
+          }}
+        />
+      )}
 
       {/* Voice overlay */}
       {isListening && (
