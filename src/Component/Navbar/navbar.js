@@ -288,16 +288,33 @@ const Navbar = ({
   );
 
   useEffect(() => {
+  const loadPic = async () => {
     if (currentUser) {
-      setUserPic(
-        `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser)}&background=ff0000&color=fff&size=40`,
-      );
+      const savedPic = localStorage.getItem("profilePic");
+      if (savedPic) {
+        setUserPic(savedPic);
+      } else {
+        const { data: { session } } = await supabase.auth.getSession();
+        const pic = session?.user?.user_metadata?.profilePic ||
+                    session?.user?.user_metadata?.avatar_url ||
+                    session?.user?.user_metadata?.picture;
+        if (pic) {
+          localStorage.setItem("profilePic", pic);
+          setUserPic(pic);
+        } else {
+          setUserPic(
+            `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser)}&background=ff0000&color=fff&size=40`
+          );
+        }
+      }
     } else {
       setUserPic(
         "https://athenabpo.com/wp-content/uploads/2016/09/Headshot-Blank-Person-Circle-300x300.gif",
       );
     }
-  }, [currentUser]);
+  };
+  loadPic();
+}, [currentUser]);
   const [navbarModal, setNavbarModal] = useState(false);
   const [login, setLogin] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
