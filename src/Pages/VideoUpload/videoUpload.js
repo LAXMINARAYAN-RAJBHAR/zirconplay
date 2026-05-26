@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import "./videoUpload.css";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import { Link, useNavigate } from "react-router-dom";
@@ -10,6 +10,13 @@ import { supabase } from "../../config/supabase";
 
 const VideoUpload = () => {
   const navigate = useNavigate();
+
+  useEffect(() => {
+  const user = localStorage.getItem("username");
+  if (!user) {
+    navigate("/signup");
+  }
+}, []);
 
   const [uploadMode, setUploadMode] = useState("video");
 
