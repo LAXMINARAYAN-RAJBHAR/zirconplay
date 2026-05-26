@@ -101,17 +101,27 @@ const ReelItem = ({ reel }) => {
     loadLike();
   }, [reel.id]);
 
-  const handleCommentSubmit = () => {
-    if (!commentText.trim()) return;
-    const newComment = {
-      id: Date.now(),
-      user: loggedInUser,
-      text: commentText,
-      date: new Date().toISOString().slice(0, 10),
-    };
-    setComments((prev) => [newComment, ...prev]);
-    setCommentText("");
-  };
+  const handleCommentSubmit = async () => {
+  if (!commentText.trim()) return;
+  const userId = localStorage.getItem("userId");
+  if (!userId) { alert("Please login to comment"); return; }
+  const { data, error } = await supabase.from("comments").insert({
+    user_id: userId,
+    username: loggedInUser,
+    content_id: String(reel.id),
+    content_type: "reel",
+    text: commentText,
+  }).select().single();
+  if (!error && data) {
+    setComments((prev) => [{
+      id: data.id,
+      user: data.username,
+      text: data.text,
+      date: data.created_at?.slice(0, 10),
+    }, ...prev]);
+  }
+  setCommentText("");
+};
 
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href).catch(() => {});
@@ -386,6 +396,25 @@ const Reels = () => {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
+
+  useEffect(() => {
+  const loadComments = async () => {
+    const { data } = await supabase
+      .from("comments")
+      .select("*")
+      .match({ content_id: String(reel.id), content_type: "reel" })
+      .order("created_at", { ascending: false });
+    if (data && data.length > 0) {
+      setComments(data.map((c) => ({
+        id: c.id,
+        user: c.username,
+        text: c.text,
+        date: c.created_at?.slice(0, 10),
+      })));
+    }
+  };
+  loadComments();
+}, [reel.id]);
 
   return (
     <div className="reels_container">

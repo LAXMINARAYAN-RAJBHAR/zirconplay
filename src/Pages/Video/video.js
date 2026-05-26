@@ -140,10 +140,11 @@ const Video = () => {
   const [likeCount, setLikeCount] = useState(0);
   const [disliked, setDisliked] = useState(false);
   const [shareToast, setShareToast] = useState(false);
-  const [allComments, setAllComments] = useState({});
+  const [allComments, setAllComments] = useState([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
 
   const loggedInUser = localStorage.getItem("username") || "Guest";
-  const comments = allComments[id] ?? defaultComments;
+  const comments = allComments.length > 0 ? allComments : defaultComments;
   const controlsTimer = useRef(null);
   const videoRef = useRef(null);
 
@@ -207,20 +208,27 @@ const Video = () => {
     setTimeout(() => setShareToast(false), 2500);
   };
 
-  const handleCommentSubmit = () => {
-    if (!message.trim()) return;
-    const newComment = {
-      id: Date.now(),
-      user: loggedInUser,
-      text: message,
-      date: new Date().toISOString().slice(0, 10),
-    };
-    setAllComments((prev) => ({
-      ...prev,
-      [id]: [newComment, ...(prev[id] ?? defaultComments)],
-    }));
-    setMessage("");
-  };
+  const handleCommentSubmit = async () => {
+  if (!message.trim()) return;
+  const userId = localStorage.getItem("userId");
+  if (!userId) { alert("Please login to comment"); return; }
+  const { data, error } = await supabase.from("comments").insert({
+    user_id: userId,
+    username: loggedInUser,
+    content_id: String(id),
+    content_type: "video",
+    text: message,
+  }).select().single();
+  if (!error && data) {
+    setAllComments((prev) => [{
+      id: data.id,
+      user: data.username,
+      text: data.text,
+      date: data.created_at?.slice(0, 10),
+    }, ...prev]);
+  }
+  setMessage("");
+};
 
   useEffect(() => {
     const handleSpacebar = (e) => {
@@ -256,6 +264,29 @@ const Video = () => {
     };
     loadLikes();
   }, [id]);
+
+  useEffect(() => {
+  const loadComments = async () => {
+    setCommentsLoading(true);
+    const { data } = await supabase
+      .from("comments")
+      .select("*")
+      .match({ content_id: String(id), content_type: "video" })
+      .order("created_at", { ascending: false });
+    if (data && data.length > 0) {
+      setAllComments(data.map((c) => ({
+        id: c.id,
+        user: c.username,
+        text: c.text,
+        date: c.created_at?.slice(0, 10),
+      })));
+    } else {
+      setAllComments([]);
+    }
+    setCommentsLoading(false);
+  };
+  loadComments();
+}, [id]);
 
   useEffect(() => {
     setDisliked(false);
