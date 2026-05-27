@@ -1614,36 +1614,44 @@ const HomePage = ({ sideNavbar }) => {
 
   // ── Fetch stored view counts from Supabase ───────────────────
   const fetchViewCounts = async (ids, contentType) => {
-  if (!ids || !ids.length) return;
-  try {
-    const { data, error } = await supabase
-      .from("view_counts")
-      .select("content_id, count")
-      .eq("content_type", contentType)
-      .in("content_id", ids.map(String));
+    if (!ids || !ids.length) return;
+    try {
+      const { data, error } = await supabase
+        .from("view_counts")
+        .select("content_id, count")
+        .eq("content_type", contentType)
+        .in("content_id", ids.map(String));
 
-    if (error) {
-      // Table might not exist — seed zeros so UI shows "0 views"
+      if (error) {
+        // Table might not exist — seed zeros so UI shows "0 views"
+        const map = {};
+        ids.forEach((id) => {
+          map[contentType + "_" + id] = 0;
+        });
+        setViewCounts((prev) => ({ ...prev, ...map }));
+        return;
+      }
+
+      // Start with 0 for ALL ids, then overwrite with real counts
       const map = {};
-      ids.forEach((id) => { map[contentType + "_" + id] = 0; });
+      ids.forEach((id) => {
+        map[contentType + "_" + id] = 0;
+      });
+      if (data) {
+        data.forEach((r) => {
+          map[contentType + "_" + r.content_id] = r.count;
+        });
+      }
       setViewCounts((prev) => ({ ...prev, ...map }));
-      return;
+    } catch (_) {
+      // Seed zeros on any error
+      const map = {};
+      ids.forEach((id) => {
+        map[contentType + "_" + id] = 0;
+      });
+      setViewCounts((prev) => ({ ...prev, ...map }));
     }
-
-    // Start with 0 for ALL ids, then overwrite with real counts
-    const map = {};
-    ids.forEach((id) => { map[contentType + "_" + id] = 0; });
-    if (data) {
-      data.forEach((r) => { map[contentType + "_" + r.content_id] = r.count; });
-    }
-    setViewCounts((prev) => ({ ...prev, ...map }));
-  } catch (_) {
-    // Seed zeros on any error
-    const map = {};
-    ids.forEach((id) => { map[contentType + "_" + id] = 0; });
-    setViewCounts((prev) => ({ ...prev, ...map }));
-  }
-};
+  };
 
   // ── Category options list ────────────────────────────────────
   const options = [
@@ -2097,8 +2105,19 @@ const HomePage = ({ sideNavbar }) => {
           </div>
           <div className="youtubeVideoInfo">
             <p className="youtube_videoTitle">{video.title}</p>
-            <p className="youtubeVideo_Views">
-              {isUploaded ? formatViews(views ?? 0) : "3 Likes"}
+            <p
+              className="youtubeVideo_Views"
+              style={{ display: "flex", gap: "10px", alignItems: "center" }}
+            >
+              {isUploaded ? (
+                <>
+                  <span>👁 {formatViews(views ?? 0)}</span>
+                  <span style={{ color: "#aaa", fontSize: "11px" }}>•</span>
+                  <span>👍 {video.likes ?? 0} Likes</span>
+                </>
+              ) : (
+                <span>👍 3 Likes</span>
+              )}
             </p>
           </div>
         </div>
