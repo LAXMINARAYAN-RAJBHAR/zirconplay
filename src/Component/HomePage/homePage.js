@@ -1588,17 +1588,26 @@ const HomePage = ({ sideNavbar }) => {
 
   // ── Increment a view count (optimistic + persisted) ──────────
   const incrementView = async (contentId, contentType) => {
-    const key = contentType + "_" + contentId;
-    setViewCounts((prev) => ({ ...prev, [key]: (prev[key] || 0) + 1 }));
-    try {
-      await supabase.rpc("increment_view_count", {
-        p_content_id: String(contentId),
-        p_content_type: contentType,
-      });
-    } catch (_) {
-      // fail silently
+  // Optimistic update immediately
+  const key = contentType + "_" + contentId;
+  setViewCounts((prev) => ({ ...prev, [key]: (prev[key] ?? 0) + 1 }));
+  try {
+    await supabase.rpc("increment_view_count", {
+      p_content_id: String(contentId),
+      p_content_type: contentType,
+    });
+    // Re-fetch real count from DB after RPC
+    const { data } = await supabase
+      .from("view_counts")
+      .select("count")
+      .eq("content_id", String(contentId))
+      .eq("content_type", contentType)
+      .maybeSingle();
+    if (data) {
+      setViewCounts((prev) => ({ ...prev, [key]: data.count }));
     }
-  };
+  } catch (_) {}
+};
 
   // ── Mark video watched → removes "New" badge ─────────────────
   const markAsWatched = (videoId) => {
@@ -1713,9 +1722,10 @@ const HomePage = ({ sideNavbar }) => {
           channel: v.channel,
           username: v.username || v.channel?.toLowerCase() || "unknown",
           tags: [v.category || "All"],
-          likes: v.likes ?? 0, // ← ADD THIS
+          likes: v.likes ?? 0,
         }));
         setDbVideos(formatted);
+        // ← Make sure this line exists right here
         fetchViewCounts(
           formatted.map((v) => v.id),
           "video",
@@ -1907,57 +1917,46 @@ const HomePage = ({ sideNavbar }) => {
       : allVideos.filter((v) => v.tags?.includes(selectedOption));
 
   const handleLikeVideo = async (e, videoId) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const userId = localStorage.getItem("userId");
-    if (!userId) {
-      alert("Please login to like");
-      return;
-    }
-    try {
-      // Check if already liked
-      const { data: existing } = await supabase
-        .from("likes")
-        .select("id")
-        .match({
-          user_id: userId,
-          content_id: String(videoId),
-          content_type: "video",
-        })
-        .maybeSingle();
+  e.preventDefault();
+  e.stopPropagation();
+  const userId = localStorage.getItem("userId");
+  if (!userId) { alert("Please login to like"); return; }
+  try {
+    // Check if already liked
+    const { data: existing } = await supabase
+      .from("likes")
+      .select("id")
+      .match({ user_id: userId, content_id: String(videoId), content_type: "video" })
+      .maybeSingle();
 
-      if (existing) {
-        // Unlike
-        await supabase
-          .from("likes")
-          .delete()
-          .match({
-            user_id: userId,
-            content_id: String(videoId),
-            content_type: "video",
-          });
-        setDbVideos((prev) =>
-          prev.map((v) =>
-            v.id === videoId
-              ? { ...v, likes: Math.max(0, (v.likes || 0) - 1) }
-              : v,
-          ),
-        );
-      } else {
-        // Like
-        await supabase.from("likes").insert({
-          user_id: userId,
-          content_id: String(videoId),
-          content_type: "video",
-        });
-        setDbVideos((prev) =>
-          prev.map((v) =>
-            v.id === videoId ? { ...v, likes: (v.likes || 0) + 1 } : v,
-          ),
-        );
-      }
-    } catch (_) {}
-  };
+    if (existing) {
+      // Unlike — remove from likes table
+      await supabase.from("likes").delete()
+        .match({ user_id: userId, content_id: String(videoId), content_type: "video" });
+      // Decrement videos.likes column
+      await supabase.rpc("decrement_likes", { p_table: "videos", p_id: videoId });
+      // Update local state immediately
+      setDbVideos((prev) =>
+        prev.map((v) => v.id === videoId
+          ? { ...v, likes: Math.max(0, (v.likes || 0) - 1) }
+          : v)
+      );
+    } else {
+      // Like — insert into likes table
+      await supabase.from("likes").insert(
+        { user_id: userId, content_id: String(videoId), content_type: "video" }
+      );
+      // Increment videos.likes column
+      await supabase.rpc("increment_likes", { p_table: "videos", p_id: videoId });
+      // Update local state immediately
+      setDbVideos((prev) =>
+        prev.map((v) => v.id === videoId
+          ? { ...v, likes: (v.likes || 0) + 1 }
+          : v)
+      );
+    }
+  } catch (_) {}
+};
 
   // ── Delete video ─────────────────────────────────────────────
   const handleDeleteVideo = async (e, videoId) => {
@@ -1988,7 +1987,7 @@ const HomePage = ({ sideNavbar }) => {
         {data.map((short) => {
           const isOwner = false; // Delete only allowed from Profile page
           const vcKey = short.dbId ? "reel_" + short.dbId : null;
-          const views = vcKey ? viewCounts[vcKey] : undefined;
+          const views = vcKey ? (viewCounts[vcKey] ?? 0) : undefined;
           return (
             <div
               key={short.id}
@@ -2048,7 +2047,7 @@ const HomePage = ({ sideNavbar }) => {
                       borderRadius: "4px",
                     }}
                   >
-                    👁 {formatViews(views ?? 0)}
+                    👁 {formatViews(viewCounts["reel_" + short.dbId] ?? 0)}
                   </div>
                 )}
               </div>
@@ -2080,7 +2079,7 @@ const HomePage = ({ sideNavbar }) => {
       loggedInUsername &&
       video.username === loggedInUsername;
     const vcKey = "video_" + video.id;
-    const views = viewCounts[vcKey];
+    const views = viewCounts[vcKey] ?? 0; // ← always a number
 
     return (
       <div className="youtube_thumbnailBox" style={{ position: "relative" }}>
@@ -2145,17 +2144,17 @@ const HomePage = ({ sideNavbar }) => {
         <div className="youtubeTitleBox">
           <div className="youtubeBoxProfile">
             <img
-  src={
-    "https://api.dicebear.com/7.x/initials/svg?seed=" +
-    video.channel
-  }
-  alt={video.channel}
-  className="youtube_thumbnail_Profile"
-/>
-<Link
-  to={"/user/" + (video.username || video.channel.toLowerCase())}
-  style={{ textDecoration: "none", color: "inherit" }}
->
+              src={
+                "https://api.dicebear.com/7.x/initials/svg?seed=" +
+                video.channel
+              }
+              alt={video.channel}
+              className="youtube_thumbnail_Profile"
+            />
+            <Link
+              to={"/user/" + (video.username || video.channel.toLowerCase())}
+              style={{ textDecoration: "none", color: "inherit" }}
+            >
               <p className="youtube_ChannelName">{video.channel}</p>
             </Link>
           </div>
@@ -2167,7 +2166,9 @@ const HomePage = ({ sideNavbar }) => {
             >
               {isUploaded ? (
                 <>
-                  <span>👁 {formatViews(views ?? 0)}</span>
+                  <span>
+                    👁 {formatViews(viewCounts["video_" + video.id] ?? 0)}
+                  </span>
                   <span style={{ color: "#aaa", fontSize: "11px" }}>•</span>
                   <button
                     onClick={(e) => handleLikeVideo(e, video.id)}
