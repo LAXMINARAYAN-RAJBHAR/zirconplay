@@ -1713,6 +1713,7 @@ const HomePage = ({ sideNavbar }) => {
           channel: v.channel,
           username: v.username || v.channel?.toLowerCase() || "unknown",
           tags: [v.category || "All"],
+          likes: v.likes ?? 0,   // ← ADD THIS
         }));
         setDbVideos(formatted);
         fetchViewCounts(
@@ -1778,7 +1779,7 @@ const HomePage = ({ sideNavbar }) => {
             "https://api.dicebear.com/7.x/initials/svg?seed=" +
             (r.username || "user"),
           description: r.description || "",
-          likes: r.likes || 0,
+          likes: r.likes ?? 0,   // ← already there, make sure it's not null
         }));
         setDbReels(formatted);
         fetchViewCounts(
@@ -1904,6 +1905,20 @@ const HomePage = ({ sideNavbar }) => {
     selectedOption === "All"
       ? allVideos
       : allVideos.filter((v) => v.tags?.includes(selectedOption));
+
+      const handleLikeVideo = async (e, videoId) => {
+  e.preventDefault();
+  e.stopPropagation();
+  try {
+    await supabase.rpc("increment_likes", {
+      p_table: "videos",
+      p_id: videoId,
+    });
+    setDbVideos((prev) =>
+      prev.map((v) => v.id === videoId ? { ...v, likes: (v.likes || 0) + 1 } : v)
+    );
+  } catch (_) {}
+};
 
   // ── Delete video ─────────────────────────────────────────────
   const handleDeleteVideo = async (e, videoId) => {
