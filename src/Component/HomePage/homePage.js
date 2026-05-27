@@ -1945,13 +1945,11 @@ const HomePage = ({ sideNavbar }) => {
         );
       } else {
         // Like
-        await supabase
-          .from("likes")
-          .insert({
-            user_id: userId,
-            content_id: String(videoId),
-            content_type: "video",
-          });
+        await supabase.from("likes").insert({
+          user_id: userId,
+          content_id: String(videoId),
+          content_type: "video",
+        });
         setDbVideos((prev) =>
           prev.map((v) =>
             v.id === videoId ? { ...v, likes: (v.likes || 0) + 1 } : v,
@@ -2147,14 +2145,17 @@ const HomePage = ({ sideNavbar }) => {
         <div className="youtubeTitleBox">
           <div className="youtubeBoxProfile">
             <img
-              src={
-                "https://api.dicebear.com/7.x/initials/svg?seed=" +
-                video.channel
-              }
-              alt={video.channel}
-              className="youtube_thumbnail_Profile"
-            />
-            <Link to={"/user/" + video.channel.toLowerCase()}>
+  src={
+    "https://api.dicebear.com/7.x/initials/svg?seed=" +
+    video.channel
+  }
+  alt={video.channel}
+  className="youtube_thumbnail_Profile"
+/>
+<Link
+  to={"/user/" + (video.username || video.channel.toLowerCase())}
+  style={{ textDecoration: "none", color: "inherit" }}
+>
               <p className="youtube_ChannelName">{video.channel}</p>
             </Link>
           </div>

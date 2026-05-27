@@ -124,6 +124,26 @@ const Profile = ({ sideNavbar }) => {
     const loadProfile = async () => {
       setLoading(true);
 
+      // ── DEBUG: Log everything ──
+      console.log("=== PROFILE DEBUG ===");
+      console.log("URL username param:", username);
+      console.log("key (normalized):", key);
+      console.log("localStorage username:", localStorage.getItem("username"));
+
+      // Check what's in DB
+      const { data: allVideosDB } = await supabase
+        .from("videos")
+        .select("id, channel, username")
+        .limit(10);
+      const { data: allReelsDB } = await supabase
+        .from("reels")
+        .select("id, username, user")
+        .limit(10);
+
+      console.log("DB Videos (first 10):", allVideosDB);
+      console.log("DB Reels (first 10):", allReelsDB);
+      console.log("===================");
+
       const loggedInUsername = localStorage.getItem("username");
       const loggedInProfilePic = localStorage.getItem("profilePic");
       const loggedInAbout = localStorage.getItem("about");
