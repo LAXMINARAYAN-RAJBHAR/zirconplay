@@ -1909,16 +1909,55 @@ const HomePage = ({ sideNavbar }) => {
   const handleLikeVideo = async (e, videoId) => {
     e.preventDefault();
     e.stopPropagation();
+    const userId = localStorage.getItem("userId");
+    if (!userId) {
+      alert("Please login to like");
+      return;
+    }
     try {
-      await supabase.rpc("increment_likes", {
-        p_table: "videos",
-        p_id: videoId,
-      });
-      setDbVideos((prev) =>
-        prev.map((v) =>
-          v.id === videoId ? { ...v, likes: (v.likes || 0) + 1 } : v,
-        ),
-      );
+      // Check if already liked
+      const { data: existing } = await supabase
+        .from("likes")
+        .select("id")
+        .match({
+          user_id: userId,
+          content_id: String(videoId),
+          content_type: "video",
+        })
+        .maybeSingle();
+
+      if (existing) {
+        // Unlike
+        await supabase
+          .from("likes")
+          .delete()
+          .match({
+            user_id: userId,
+            content_id: String(videoId),
+            content_type: "video",
+          });
+        setDbVideos((prev) =>
+          prev.map((v) =>
+            v.id === videoId
+              ? { ...v, likes: Math.max(0, (v.likes || 0) - 1) }
+              : v,
+          ),
+        );
+      } else {
+        // Like
+        await supabase
+          .from("likes")
+          .insert({
+            user_id: userId,
+            content_id: String(videoId),
+            content_type: "video",
+          });
+        setDbVideos((prev) =>
+          prev.map((v) =>
+            v.id === videoId ? { ...v, likes: (v.likes || 0) + 1 } : v,
+          ),
+        );
+      }
     } catch (_) {}
   };
 
@@ -1949,8 +1988,7 @@ const HomePage = ({ sideNavbar }) => {
       </div>
       <div className="homePage_shortsRow">
         {data.map((short) => {
-          const isOwner =
-            loggedInUsername && short.username === loggedInUsername;
+          const isOwner = false; // Delete only allowed from Profile page
           const vcKey = short.dbId ? "reel_" + short.dbId : null;
           const views = vcKey ? viewCounts[vcKey] : undefined;
           return (
@@ -2036,10 +2074,13 @@ const HomePage = ({ sideNavbar }) => {
   );
 
   // ── Video card ───────────────────────────────────────────────
-  const VideoCard = ({ video, isUploaded = false }) => {
+  const VideoCard = ({ video, isUploaded = false, showDelete = false }) => {
     const isNew = isUploaded && !watchedVideos.has(String(video.id));
     const isOwner =
-      isUploaded && loggedInUsername && video.username === loggedInUsername;
+      showDelete &&
+      isUploaded &&
+      loggedInUsername &&
+      video.username === loggedInUsername;
     const vcKey = "video_" + video.id;
     const views = viewCounts[vcKey];
 
