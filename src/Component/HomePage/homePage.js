@@ -599,6 +599,14 @@ const avatarColors = [
 const getColor = (str) =>
   avatarColors[(str || "A").charCodeAt(0) % avatarColors.length];
 
+// Format view counts like YouTube: 1.2K, 3.4M, etc.
+const formatViews = (n) => {
+  if (!n || n === 0) return "0 views";
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + "M views";
+  if (n >= 1000) return (n / 1000).toFixed(1) + "K views";
+  return n + " views";
+};
+
 const useIsMobile = () => {
   const [mobile, setMobile] = useState(() => window.innerWidth <= 768);
   useEffect(() => {
@@ -609,6 +617,9 @@ const useIsMobile = () => {
   return mobile;
 };
 
+// =============================================================
+//  WATCH PAGE (YouTube embed overlay)
+// =============================================================
 const WatchPage = ({
   initialVideoId,
   initialTitle,
@@ -723,7 +734,11 @@ const WatchPage = ({
     >
       <iframe
         key={videoId}
-        src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1`}
+        src={
+          "https://www.youtube.com/embed/" +
+          videoId +
+          "?autoplay=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1"
+        }
         title={videoTitle}
         frameBorder="0"
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -859,7 +874,11 @@ const WatchPage = ({
       >
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <img
-            src={`https://ui-avatars.com/api/?name=${encodeURIComponent(channelName)}&background=random&size=40`}
+            src={
+              "https://ui-avatars.com/api/?name=" +
+              encodeURIComponent(channelName) +
+              "&background=random&size=40"
+            }
             alt={channelName}
             style={{
               width: "40px",
@@ -952,7 +971,7 @@ const WatchPage = ({
         <button
           onClick={() => {
             navigator.clipboard.writeText(
-              `https://www.youtube.com/watch?v=${videoId}`,
+              "https://www.youtube.com/watch?v=" + videoId,
             );
             alert("Link copied!");
           }}
@@ -1346,7 +1365,11 @@ const WatchPage = ({
   if (isMobile) {
     return (
       <>
-        <style>{`.hp-watch-root{position:fixed;top:55px;left:0;right:0;bottom:0;z-index:999;background:#0f0f0f;display:flex;flex-direction:column;font-family:'Segoe UI',sans-serif;overflow-y:auto;-webkit-overflow-scrolling:touch;}.hp-watch-root *{-webkit-transform:none !important;}@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}`}</style>
+        <style>
+          {
+            ".hp-watch-root{position:fixed;top:55px;left:0;right:0;bottom:0;z-index:999;background:#0f0f0f;display:flex;flex-direction:column;font-family:'Segoe UI',sans-serif;overflow-y:auto;-webkit-overflow-scrolling:touch;}.hp-watch-root *{-webkit-transform:none !important;}@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}"
+          }
+        </style>
         <div className="hp-watch-root">
           <div
             style={{
@@ -1416,7 +1439,11 @@ const WatchPage = ({
 
   return (
     <>
-      <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-thumb{background:#555;border-radius:4px;}`}</style>
+      <style>
+        {
+          "@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-thumb{background:#555;border-radius:4px;}"
+        }
+      </style>
       <div
         style={{
           position: "fixed",
@@ -1531,9 +1558,9 @@ const WatchPage = ({
   );
 };
 
-/* ─────────────────────────────────────────────────────────────
-   HOME PAGE
-───────────────────────────────────────────────────────────── */
+// =============================================================
+//  HOME PAGE
+// =============================================================
 const HomePage = ({ sideNavbar }) => {
   const navigate = useNavigate();
   const [selectedOption, setSelectedOption] = useState("All");
@@ -1546,8 +1573,8 @@ const HomePage = ({ sideNavbar }) => {
   const [dbVideos, setDbVideos] = useState([]);
   const [dbLoading, setDbLoading] = useState(true);
   const [dbReels, setDbReels] = useState([]);
+  const [viewCounts, setViewCounts] = useState({});
 
-  // ── NEW: track which video IDs the current user has watched ──
   const [watchedVideos, setWatchedVideos] = useState(() => {
     try {
       const stored = localStorage.getItem("watchedVideos");
@@ -1557,21 +1584,68 @@ const HomePage = ({ sideNavbar }) => {
     }
   });
 
-  // Call this whenever a user navigates to a video
+  const loggedInUsername = localStorage.getItem("username") || "";
+
+  // ── Increment a view count (optimistic + persisted) ──────────
+  const incrementView = async (contentId, contentType) => {
+    const key = contentType + "_" + contentId;
+    setViewCounts((prev) => ({ ...prev, [key]: (prev[key] || 0) + 1 }));
+    try {
+      await supabase.rpc("increment_view_count", {
+        p_content_id: String(contentId),
+        p_content_type: contentType,
+      });
+    } catch (_) {
+      // fail silently
+    }
+  };
+
+  // ── Mark video watched → removes "New" badge ─────────────────
   const markAsWatched = (videoId) => {
     setWatchedVideos((prev) => {
       const next = new Set(prev);
       next.add(String(videoId));
       try {
         localStorage.setItem("watchedVideos", JSON.stringify([...next]));
-      } catch {
-        // localStorage unavailable — fail silently
-      }
+      } catch (_) {}
       return next;
     });
   };
-  // ─────────────────────────────────────────────────────────────
 
+  // ── Fetch stored view counts from Supabase ───────────────────
+  const fetchViewCounts = async (ids, contentType) => {
+  if (!ids || !ids.length) return;
+  try {
+    const { data, error } = await supabase
+      .from("view_counts")
+      .select("content_id, count")
+      .eq("content_type", contentType)
+      .in("content_id", ids.map(String));
+
+    if (error) {
+      // Table might not exist — seed zeros so UI shows "0 views"
+      const map = {};
+      ids.forEach((id) => { map[contentType + "_" + id] = 0; });
+      setViewCounts((prev) => ({ ...prev, ...map }));
+      return;
+    }
+
+    // Start with 0 for ALL ids, then overwrite with real counts
+    const map = {};
+    ids.forEach((id) => { map[contentType + "_" + id] = 0; });
+    if (data) {
+      data.forEach((r) => { map[contentType + "_" + r.content_id] = r.count; });
+    }
+    setViewCounts((prev) => ({ ...prev, ...map }));
+  } catch (_) {
+    // Seed zeros on any error
+    const map = {};
+    ids.forEach((id) => { map[contentType + "_" + id] = 0; });
+    setViewCounts((prev) => ({ ...prev, ...map }));
+  }
+};
+
+  // ── Category options list ────────────────────────────────────
   const options = [
     "All",
     "DD News",
@@ -1613,6 +1687,7 @@ const HomePage = ({ sideNavbar }) => {
     "Watched",
   ];
 
+  // ── Fetch DB videos ──────────────────────────────────────────
   useEffect(() => {
     const fetchDbVideos = async () => {
       setDbLoading(true);
@@ -1621,16 +1696,20 @@ const HomePage = ({ sideNavbar }) => {
         .select("*")
         .order("created_at", { ascending: false });
       if (!error && data) {
-        setDbVideos(
-          data.map((v) => ({
-            id: v.id,
-            src: v.video_url,
-            thumbnail: v.thumbnail_url,
-            title: v.title,
-            duration: v.duration || "00:00",
-            channel: v.channel,
-            tags: [v.category || "All"],
-          })),
+        const formatted = data.map((v) => ({
+          id: v.id,
+          src: v.video_url,
+          thumbnail: v.thumbnail_url,
+          title: v.title,
+          duration: v.duration || "00:00",
+          channel: v.channel,
+          username: v.username || v.channel?.toLowerCase() || "unknown",
+          tags: [v.category || "All"],
+        }));
+        setDbVideos(formatted);
+        fetchViewCounts(
+          formatted.map((v) => v.id),
+          "video",
         );
       }
       setDbLoading(false);
@@ -1652,16 +1731,25 @@ const HomePage = ({ sideNavbar }) => {
               title: v.title,
               duration: v.duration || "00:00",
               channel: v.channel,
+              username: v.username || v.channel?.toLowerCase() || "unknown",
               tags: [v.category || "All"],
             },
             ...prev,
           ]);
         },
       )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "videos" },
+        (payload) => {
+          setDbVideos((prev) => prev.filter((v) => v.id !== payload.old.id));
+        },
+      )
       .subscribe();
     return () => supabase.removeChannel(subscription);
   }, []);
 
+  // ── Fetch DB reels ───────────────────────────────────────────
   useEffect(() => {
     const fetchDbReels = async () => {
       const { data, error } = await supabase
@@ -1669,19 +1757,25 @@ const HomePage = ({ sideNavbar }) => {
         .select("*")
         .order("created_at", { ascending: false });
       if (!error && data) {
-        setDbReels(
-          data.map((r) => ({
-            id: `db_${r.id}`,
-            src: r.video_url,
-            thumbnail: r.thumbnail || "https://picsum.photos/200/350?random=99",
-            title: r.title || "Untitled",
-            duration: r.duration || "00:00",
-            user: r.user || r.username || "Unknown",
-            username: r.username || "unknown",
-            profilePic: `https://api.dicebear.com/7.x/initials/svg?seed=${r.username || "user"}`,
-            description: r.description || "",
-            likes: r.likes || 0,
-          })),
+        const formatted = data.map((r) => ({
+          id: "db_" + r.id,
+          dbId: r.id,
+          src: r.video_url,
+          thumbnail: r.thumbnail || "https://picsum.photos/200/350?random=99",
+          title: r.title || "Untitled",
+          duration: r.duration || "00:00",
+          user: r.user || r.username || "Unknown",
+          username: r.username || "unknown",
+          profilePic:
+            "https://api.dicebear.com/7.x/initials/svg?seed=" +
+            (r.username || "user"),
+          description: r.description || "",
+          likes: r.likes || 0,
+        }));
+        setDbReels(formatted);
+        fetchViewCounts(
+          formatted.map((r) => r.dbId),
+          "reel",
         );
       }
     };
@@ -1696,7 +1790,8 @@ const HomePage = ({ sideNavbar }) => {
           const r = payload.new;
           setDbReels((prev) => [
             {
-              id: r.id,
+              id: "db_" + r.id,
+              dbId: r.id,
               src: r.video_url,
               thumbnail:
                 r.thumbnail || "https://picsum.photos/200/350?random=99",
@@ -1704,12 +1799,21 @@ const HomePage = ({ sideNavbar }) => {
               duration: r.duration || "00:00",
               user: r.user || r.username || "Unknown",
               username: r.username || "unknown",
-              profilePic: `https://api.dicebear.com/7.x/initials/svg?seed=${r.username || "user"}`,
+              profilePic:
+                "https://api.dicebear.com/7.x/initials/svg?seed=" +
+                (r.username || "user"),
               description: r.description || "",
               likes: r.likes || 0,
             },
             ...prev,
           ]);
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "reels" },
+        (payload) => {
+          setDbReels((prev) => prev.filter((r) => r.dbId !== payload.old.id));
         },
       )
       .subscribe();
@@ -1723,6 +1827,7 @@ const HomePage = ({ sideNavbar }) => {
     fetchYouTubeByTopic(selectedOption);
   }, [selectedOption]);
 
+  // ── Auto-scroll category bar ─────────────────────────────────
   useEffect(() => {
     const track = optionsTrackRef.current;
     if (!track) return;
@@ -1742,6 +1847,7 @@ const HomePage = ({ sideNavbar }) => {
     };
   }, []);
 
+  // ── YouTube search ───────────────────────────────────────────
   const fetchYouTubeByTopic = async (topic) => {
     if (["All", "Recently Uploaded", "Watched"].includes(topic)) {
       setYtVideos([]);
@@ -1791,63 +1897,159 @@ const HomePage = ({ sideNavbar }) => {
       ? allVideos
       : allVideos.filter((v) => v.tags?.includes(selectedOption));
 
+  // ── Delete video ─────────────────────────────────────────────
+  const handleDeleteVideo = async (e, videoId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!window.confirm("Delete this video? This cannot be undone.")) return;
+    const { error } = await supabase.from("videos").delete().eq("id", videoId);
+    if (!error) setDbVideos((prev) => prev.filter((v) => v.id !== videoId));
+    else alert("Failed to delete video.");
+  };
+
+  // ── Delete reel ──────────────────────────────────────────────
+  const handleDeleteReel = async (e, dbId) => {
+    e.stopPropagation();
+    if (!window.confirm("Delete this reel? This cannot be undone.")) return;
+    const { error } = await supabase.from("reels").delete().eq("id", dbId);
+    if (!error) setDbReels((prev) => prev.filter((r) => r.dbId !== dbId));
+    else alert("Failed to delete reel.");
+  };
+
+  // ── Shorts / Reels row ───────────────────────────────────────
   const ShortsRow = ({ data, title }) => (
     <div className="homePage_shortsSection">
       <div className="homePage_shortsHeader">
         <span className="homePage_shortsTitle">🎬 {title}</span>
       </div>
       <div className="homePage_shortsRow">
-        {data.map((short) => (
-          <div
-            key={short.id}
-            className="homePage_shortCard"
-            style={{ cursor: "pointer" }}
-            onClick={() => {
-              navigate("/reels", {
-                state: {
-                  clickedReel: short,
-                },
-              });
-            }}
-          >
-            <div className="homePage_shortThumbnail">
-              <img
-                src={short.thumbnail}
-                alt={short.user}
-                className="homePage_shortImg"
-              />
-              <div className="homePage_shortPlay">▶</div>
-              <div className="homePage_shortDuration">{short.duration}</div>
-            </div>
-            <div className="homePage_shortTitle">{short.title}</div>
-            <Link
-              to={`/user/${short.username}`}
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                textDecoration: "none",
-                color: "#aaa",
-                fontSize: "13px",
+        {data.map((short) => {
+          const isOwner =
+            loggedInUsername && short.username === loggedInUsername;
+          const vcKey = "reel_" + (short.dbId || short.id);
+          const views = viewCounts[vcKey];
+          return (
+            <div
+              key={short.id}
+              className="homePage_shortCard"
+              style={{ cursor: "pointer", position: "relative" }}
+              onClick={() => {
+                if (short.dbId) incrementView(short.dbId, "reel");
+                navigate("/reels", { state: { clickedReel: short } });
               }}
             >
-              <div className="homePage_shortUser">{short.user}</div>
-            </Link>
-          </div>
-        ))}
+              {isOwner && short.dbId && (
+                <button
+                  onClick={(e) => handleDeleteReel(e, short.dbId)}
+                  title="Delete reel"
+                  style={{
+                    position: "absolute",
+                    top: "6px",
+                    right: "6px",
+                    zIndex: 10,
+                    background: "rgba(220,38,38,0.85)",
+                    border: "none",
+                    color: "white",
+                    borderRadius: "50%",
+                    width: "24px",
+                    height: "24px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                    fontSize: "13px",
+                    lineHeight: 1,
+                    boxShadow: "0 2px 6px rgba(0,0,0,0.5)",
+                  }}
+                >
+                  🗑
+                </button>
+              )}
+              <div className="homePage_shortThumbnail">
+                <img
+                  src={short.thumbnail}
+                  alt={short.user}
+                  className="homePage_shortImg"
+                />
+                <div className="homePage_shortPlay">▶</div>
+                <div className="homePage_shortDuration">{short.duration}</div>
+                {views !== undefined && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: "4px",
+                      left: "4px",
+                      background: "rgba(0,0,0,0.75)",
+                      color: "white",
+                      fontSize: "10px",
+                      fontWeight: "600",
+                      padding: "2px 6px",
+                      borderRadius: "4px",
+                    }}
+                  >
+                    👁 {formatViews(views || 0)}
+                  </div>
+                )}
+              </div>
+              <div className="homePage_shortTitle">{short.title}</div>
+              <Link
+                to={"/user/" + short.username}
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  textDecoration: "none",
+                  color: "#aaa",
+                  fontSize: "13px",
+                }}
+              >
+                <div className="homePage_shortUser">{short.user}</div>
+              </Link>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
 
-  // ── UPDATED VideoCard: "New" badge disappears after first watch ──
+  // ── Video card ───────────────────────────────────────────────
   const VideoCard = ({ video, isUploaded = false }) => {
-    // Show "New" only if the video is an uploaded one AND not yet watched
     const isNew = isUploaded && !watchedVideos.has(String(video.id));
+    const isOwner =
+      isUploaded && loggedInUsername && video.username === loggedInUsername;
+    const vcKey = "video_" + video.id;
+    const views = viewCounts[vcKey];
 
     return (
-      <div className="youtube_thumbnailBox">
+      <div className="youtube_thumbnailBox" style={{ position: "relative" }}>
+        {isOwner && (
+          <button
+            onClick={(e) => handleDeleteVideo(e, video.id)}
+            title="Delete video"
+            style={{
+              position: "absolute",
+              top: "8px",
+              right: "8px",
+              zIndex: 10,
+              background: "rgba(220,38,38,0.9)",
+              border: "none",
+              color: "white",
+              borderRadius: "6px",
+              padding: "4px 8px",
+              cursor: "pointer",
+              fontSize: "11px",
+              fontWeight: "700",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
+            }}
+          >
+            🗑 Delete
+          </button>
+        )}
         <Link
-          to={`/video/${video.id}`}
+          to={"/video/" + video.id}
           className="youtube_thumbnailWrapper"
-          onClick={() => markAsWatched(video.id)}
+          onClick={() => {
+            markAsWatched(video.id);
+            if (isUploaded) incrementView(video.id, "video");
+          }}
         >
           <img
             src={video.thumbnail}
@@ -1855,8 +2057,6 @@ const HomePage = ({ sideNavbar }) => {
             className="youtube_thumbnailPic"
           />
           <div className="youtube_timingThumbnail">{video.duration}</div>
-
-          {/* "New" badge — only shown when isNew is true */}
           {isNew && (
             <div
               style={{
@@ -1874,7 +2074,6 @@ const HomePage = ({ sideNavbar }) => {
               New
             </div>
           )}
-
           <div className="youtube_playOverlay">
             <div className="youtube_playButton">▶</div>
           </div>
@@ -1882,12 +2081,15 @@ const HomePage = ({ sideNavbar }) => {
         <div className="youtubeTitleBox">
           <div className="youtubeBoxProfile">
             <img
-              src={`https://api.dicebear.com/7.x/initials/svg?seed=${video.channel}`}
+              src={
+                "https://api.dicebear.com/7.x/initials/svg?seed=" +
+                video.channel
+              }
               alt={video.channel}
               className="youtube_thumbnail_Profile"
             />
             <Link
-              to={`/user/${video.channel.toLowerCase()}`}
+              to={"/user/" + video.channel.toLowerCase()}
               style={{ textDecoration: "none", color: "inherit" }}
             >
               <p className="youtube_ChannelName">{video.channel}</p>
@@ -1895,14 +2097,16 @@ const HomePage = ({ sideNavbar }) => {
           </div>
           <div className="youtubeVideoInfo">
             <p className="youtube_videoTitle">{video.title}</p>
-            <p className="youtubeVideo_Views">3 Likes</p>
+            <p className="youtubeVideo_Views">
+              {isUploaded ? formatViews(views ?? 0) : "3 Likes"}
+            </p>
           </div>
         </div>
       </div>
     );
   };
-  // ─────────────────────────────────────────────────────────────
 
+  // ── YouTube video card ───────────────────────────────────────
   const YouTubeVideoCard = ({ item }) => (
     <div
       className="youtube_thumbnailBox"
@@ -1943,7 +2147,11 @@ const HomePage = ({ sideNavbar }) => {
       <div className="youtubeTitleBox">
         <div className="youtubeBoxProfile">
           <img
-            src={`https://ui-avatars.com/api/?name=${encodeURIComponent(item.snippet.channelTitle)}&background=random&size=36`}
+            src={
+              "https://ui-avatars.com/api/?name=" +
+              encodeURIComponent(item.snippet.channelTitle) +
+              "&background=random&size=36"
+            }
             alt={item.snippet.channelTitle}
             className="youtube_thumbnail_Profile"
           />
@@ -1963,6 +2171,7 @@ const HomePage = ({ sideNavbar }) => {
     </div>
   );
 
+  // ── Skeleton loader card ─────────────────────────────────────
   const SkeletonCard = () => (
     <div className="youtube_thumbnailBox">
       <div
@@ -2038,9 +2247,10 @@ const HomePage = ({ sideNavbar }) => {
     </div>
   );
 
+  // ── Render ───────────────────────────────────────────────────
   return (
     <div className="homePage">
-      <div className={`homePage_options ${sideNavbar ? "sidebar-open" : ""}`}>
+      <div className={"homePage_options" + (sideNavbar ? " sidebar-open" : "")}>
         <div
           className="homePage_options_track"
           ref={optionsTrackRef}
@@ -2102,7 +2312,9 @@ const HomePage = ({ sideNavbar }) => {
       </div>
 
       <div
-        className={`home_mainPage ${sideNavbar ? "sidebar-open" : "sidebar-closed"}`}
+        className={
+          "home_mainPage" + (sideNavbar ? " sidebar-open" : " sidebar-closed")
+        }
       >
         {selectedOption === "All" ? (
           <>
@@ -2113,14 +2325,12 @@ const HomePage = ({ sideNavbar }) => {
               ];
               const rows = [];
               const totalRows = Math.ceil(allVids.length / 12);
-
               for (let rowIndex = 0; rowIndex < totalRows; rowIndex++) {
                 const vStart = rowIndex * 12;
                 const vEnd = vStart + 12;
                 const reelStart = rowIndex * 10;
                 const reelEnd = reelStart + 10;
                 const rowReels = allReels.slice(reelStart, reelEnd);
-
                 rows.push(
                   <React.Fragment key={rowIndex}>
                     {rowReels.length > 0 && (
@@ -2278,7 +2488,7 @@ const HomePage = ({ sideNavbar }) => {
           suggestions={getSuggestions()}
         />
       )}
-      <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}`}</style>
+      <style>{"@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}"}</style>
     </div>
   );
 };
