@@ -1952,8 +1952,7 @@ const HomePage = ({ sideNavbar }) => {
           const isOwner =
             loggedInUsername && short.username === loggedInUsername;
           const vcKey = short.dbId ? "reel_" + short.dbId : null;
-          // const views = vcKey ? viewCounts[vcKey] : undefined;
-          const views = viewCounts[vcKey];
+          const views = vcKey ? viewCounts[vcKey] : undefined;
           return (
             <div
               key={short.id}
