@@ -21,62 +21,71 @@ const allVideos = [
   { id: 12, thumbnail: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQdcK3NWfTM_cOjFOH6ArcBdUbu29e0AVjFZw&s", title: "Understanding 3D Computer Graphics", duration: "20:50", channel: "Laxminarayan" },
 ];
 
+// ─── Helper: normalize a username string to a URL-safe key ───────────────────
+const toKey = (str = "") => str.toLowerCase().replace(/\s+/g, "_");
+
+// ─── Helper: does a candidate username match the URL key? ────────────────────
+const matchesKey = (candidate = "", key = "") => {
+  const c = candidate.toLowerCase();
+  return (
+    c === key ||
+    c.replace(/\s+/g, "_") === key ||
+    c.replace(/\s+/g, ".") === key
+  );
+};
+
 const Profile = ({ sideNavbar }) => {
   const { username } = useParams();
   const key = username?.toLowerCase();
   const navigate = useNavigate();
 
-  const [user, setUser] = useState(null);
+  const [user, setUser]         = useState(null);
   const [dbVideos, setDbVideos] = useState([]);
-  const [dbReels, setDbReels] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [dbReels, setDbReels]   = useState([]);
+  const [loading, setLoading]   = useState(true);
 
+  // Edit-profile modal state
   const [showEditProfile, setShowEditProfile] = useState(false);
-  const [editName, setEditName] = useState("");
+  const [editName, setEditName]   = useState("");
   const [editAbout, setEditAbout] = useState("");
-  const [editPic, setEditPic] = useState("");
+  const [editPic, setEditPic]     = useState("");
   const [editLoading, setEditLoading] = useState(false);
 
+  // ─── Confirm-delete state ────────────────────────────────────────────────
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  // deleteTarget = { type: "video" | "reel", id, title }
+
+  // ─── Load profile ────────────────────────────────────────────────────────
   useEffect(() => {
     const loadProfile = async () => {
       setLoading(true);
 
-      const loggedInUsername = localStorage.getItem("username");
-      const loggedInProfilePic = localStorage.getItem("profilePic");
-      const loggedInAbout = localStorage.getItem("about");
-      const loggedInEmail = localStorage.getItem("email");
+      // ── 1. Try localStorage (fastest) ──────────────────────────────────
+      const lsUsername = localStorage.getItem("username");
+      const lsProfilePic = localStorage.getItem("profilePic");
+      const lsAbout    = localStorage.getItem("about");
+      const lsEmail    = localStorage.getItem("email");
 
-      const isLoggedInUser =
-        loggedInUsername &&
-        (loggedInUsername.toLowerCase() === key ||
-          loggedInUsername.toLowerCase().replace(/\s+/g, "_") === key ||
-          loggedInUsername.toLowerCase().replace(/\s+/g, ".") === key);
-
-      if (isLoggedInUser) {
+      if (lsUsername && matchesKey(lsUsername, key)) {
         setUser({
-          name: loggedInUsername,
-          handle: `@${loggedInUsername}`,
+          name: lsUsername,
+          handle: `@${lsUsername}`,
           profilePic:
-            loggedInProfilePic ||
-            `https://ui-avatars.com/api/?name=${encodeURIComponent(loggedInUsername)}&background=ff0000&color=fff&size=120`,
-          about: loggedInAbout || `${loggedInUsername}'s channel`,
-          email: loggedInEmail,
+            lsProfilePic ||
+            `https://ui-avatars.com/api/?name=${encodeURIComponent(lsUsername)}&background=ff0000&color=fff&size=120`,
+          about: lsAbout || `${lsUsername}'s channel`,
+          email: lsEmail,
           isOwner: true,
         });
       } else {
+        // ── 2. Try Supabase auth session ──────────────────────────────────
         const { data: authData } = await supabase.auth.getUser();
         const authUser = authData?.user;
         const authUsername =
           authUser?.user_metadata?.channelName ||
           authUser?.user_metadata?.username;
 
-        const isAuthUser =
-          authUsername &&
-          (authUsername.toLowerCase() === key ||
-            authUsername.toLowerCase().replace(/\s+/g, "_") === key ||
-            authUsername.toLowerCase().replace(/\s+/g, ".") === key);
-
-        if (isAuthUser) {
+        if (authUsername && matchesKey(authUsername, key)) {
           setUser({
             name: authUsername,
             handle: `@${authUsername}`,
@@ -87,27 +96,25 @@ const Profile = ({ sideNavbar }) => {
             email: authUser.email,
             isOwner: true,
           });
+          // Keep localStorage in sync so future refreshes are instant
+          localStorage.setItem("username", authUsername);
+          if (authUser.user_metadata?.profilePic)
+            localStorage.setItem("profilePic", authUser.user_metadata.profilePic);
+          if (authUser.user_metadata?.about)
+            localStorage.setItem("about", authUser.user_metadata.about);
         } else {
+          // ── 3. Look up other users from the videos / reels tables ────────
+          let foundUser = null;
+
           const { data: videoUserData } = await supabase
             .from("videos")
             .select("channel, username")
-            .limit(100);
-
-          let foundUser = null;
+            .limit(200);
 
           if (videoUserData) {
-            const match = videoUserData.find((v) => {
-              const uname = (v.username || "").toLowerCase();
-              const cname = (v.channel || "").toLowerCase();
-              return (
-                uname === key ||
-                uname.replace(/\s+/g, "_") === key ||
-                uname.replace(/\s+/g, ".") === key ||
-                cname === key ||
-                cname.replace(/\s+/g, "_") === key ||
-                cname.replace(/\s+/g, ".") === key
-              );
-            });
+            const match = videoUserData.find(
+              (v) => matchesKey(v.username, key) || matchesKey(v.channel, key)
+            );
             if (match) {
               foundUser = {
                 name: match.channel || match.username,
@@ -123,17 +130,10 @@ const Profile = ({ sideNavbar }) => {
             const { data: reelUserData } = await supabase
               .from("reels")
               .select("username, user")
-              .limit(100);
+              .limit(200);
 
             if (reelUserData) {
-              const match = reelUserData.find((r) => {
-                const uname = (r.username || "").toLowerCase();
-                return (
-                  uname === key ||
-                  uname.replace(/\s+/g, "_") === key ||
-                  uname.replace(/\s+/g, ".") === key
-                );
-              });
+              const match = reelUserData.find((r) => matchesKey(r.username, key));
               if (match) {
                 foundUser = {
                   name: match.user || match.username,
@@ -147,14 +147,7 @@ const Profile = ({ sideNavbar }) => {
           }
 
           if (!foundUser) {
-            const reelUser = reelsData.find((r) => {
-              const uname = (r.username || "").toLowerCase();
-              return (
-                uname === key ||
-                uname.replace(/\s+/g, "_") === key ||
-                uname.replace(/\s+/g, ".") === key
-              );
-            });
+            const reelUser = reelsData.find((r) => matchesKey(r.username, key));
             if (reelUser) {
               foundUser = {
                 name: reelUser.user,
@@ -172,7 +165,7 @@ const Profile = ({ sideNavbar }) => {
         }
       }
 
-      // ── Fetch DB videos for this user ──
+      // ── Fetch DB videos ──────────────────────────────────────────────────
       const { data: vData } = await supabase
         .from("videos")
         .select("*")
@@ -181,18 +174,7 @@ const Profile = ({ sideNavbar }) => {
       if (vData) {
         setDbVideos(
           vData
-            .filter((v) => {
-              const uname = (v.username || "").toLowerCase();
-              const cname = (v.channel || "").toLowerCase();
-              return (
-                uname === key ||
-                uname.replace(/\s+/g, "_") === key ||
-                uname.replace(/\s+/g, ".") === key ||
-                cname === key ||
-                cname.replace(/\s+/g, "_") === key ||
-                cname.replace(/\s+/g, ".") === key
-              );
-            })
+            .filter((v) => matchesKey(v.username, key) || matchesKey(v.channel, key))
             .map((v) => ({
               id: v.id,
               src: v.video_url,
@@ -204,7 +186,7 @@ const Profile = ({ sideNavbar }) => {
         );
       }
 
-      // ── Fetch DB reels for this user ──
+      // ── Fetch DB reels ───────────────────────────────────────────────────
       const { data: rData } = await supabase
         .from("reels")
         .select("*")
@@ -213,16 +195,10 @@ const Profile = ({ sideNavbar }) => {
       if (rData) {
         setDbReels(
           rData
-            .filter((r) => {
-              const uname = (r.username || "").toLowerCase();
-              return (
-                uname === key ||
-                uname.replace(/\s+/g, "_") === key ||
-                uname.replace(/\s+/g, ".") === key
-              );
-            })
+            .filter((r) => matchesKey(r.username, key))
             .map((r) => ({
               id: `db_${r.id}`,
+              dbId: r.id,            // raw DB id for deletion
               src: r.video_url,
               thumbnail: r.thumbnail || "https://picsum.photos/200/350?random=99",
               title: r.title || "Untitled",
@@ -242,22 +218,19 @@ const Profile = ({ sideNavbar }) => {
     loadProfile();
   }, [key]);
 
-  const hardcodedReels = reelsData.filter(
-    (r) => r.username?.toLowerCase() === key
-  );
-  const hardcodedVideos = allVideos.filter(
-    (v) => v.channel?.toLowerCase() === key
-  );
-  const allUserVideos = [...dbVideos, ...hardcodedVideos];
-  const allUserReels = [...dbReels, ...hardcodedReels];
+  const hardcodedReels  = reelsData.filter((r) => r.username?.toLowerCase() === key);
+  const hardcodedVideos = allVideos.filter((v) => v.channel?.toLowerCase() === key);
+  const allUserVideos   = [...dbVideos, ...hardcodedVideos];
+  const allUserReels    = [...dbReels, ...hardcodedReels];
 
+  // ─── Save edited profile ─────────────────────────────────────────────────
   const handleSaveProfile = async () => {
-    const newName = editName.trim() || user.name;
+    const newName  = editName.trim()  || user.name;
     const newAbout = editAbout.trim() || user.about;
-    const newPic = editPic.trim() || user.profilePic;
+    const newPic   = editPic.trim()   || user.profilePic;
 
-    localStorage.setItem("username", newName);
-    localStorage.setItem("about", newAbout);
+    localStorage.setItem("username",   newName);
+    localStorage.setItem("about",      newAbout);
     localStorage.setItem("profilePic", newPic);
 
     await supabase.auth.updateUser({
@@ -278,6 +251,27 @@ const Profile = ({ sideNavbar }) => {
     setEditPic("");
   };
 
+  // ─── Delete handlers ─────────────────────────────────────────────────────
+  const confirmDelete = (type, id, dbId, title) => {
+    setDeleteTarget({ type, id, dbId, title });
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    const { type, id, dbId } = deleteTarget;
+
+    if (type === "video") {
+      await supabase.from("videos").delete().eq("id", id);
+      setDbVideos((prev) => prev.filter((v) => v.id !== id));
+    } else {
+      await supabase.from("reels").delete().eq("id", dbId);
+      setDbReels((prev) => prev.filter((r) => r.dbId !== dbId));
+    }
+
+    setDeleteTarget(null);
+  };
+
+  // ─── Loading / not-found states ──────────────────────────────────────────
   if (loading) {
     return (
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh", color: "white", flexDirection: "column", gap: "16px" }}>
@@ -299,6 +293,12 @@ const Profile = ({ sideNavbar }) => {
   }
 
   return (
+    /*
+      FIX 1 — SCROLL:
+      The outer .profile wrapper must NOT be overflow:hidden or have a fixed height.
+      The inner .profile_page / .profile_page_inactive must also NOT be overflow:hidden.
+      Both are handled in profile.css (see the updated CSS block at the bottom).
+    */
     <div className="profile">
       <SideNavbar sideNavbar={sideNavbar} />
 
@@ -316,9 +316,12 @@ const Profile = ({ sideNavbar }) => {
               className="profile_top_section_img"
               src={user.profilePic}
               alt={user.name}
-              onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=ff0000&color=fff&size=120`; }}
+              onError={(e) => {
+                e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=ff0000&color=fff&size=120`;
+              }}
             />
           </div>
+
           <div className="profile_top_section_About">
             <div className="profile_top_section_About_Name">{user.name}</div>
             <div className="profile_top_section_info">
@@ -326,6 +329,7 @@ const Profile = ({ sideNavbar }) => {
             </div>
             <div className="profile_top_section_info">{user.about}</div>
 
+            {/* FIX 2 — OWNER BUTTONS always shown when isOwner is true */}
             {user.isOwner && (
               <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "8px" }}>
                 <Link
@@ -335,7 +339,12 @@ const Profile = ({ sideNavbar }) => {
                   + Upload Video / Reel
                 </Link>
                 <button
-                  onClick={() => { setEditName(user.name); setEditAbout(user.about); setEditPic(user.profilePic); setShowEditProfile(true); }}
+                  onClick={() => {
+                    setEditName(user.name);
+                    setEditAbout(user.about);
+                    setEditPic(user.profilePic);
+                    setShowEditProfile(true);
+                  }}
                   style={{ background: "#272727", color: "white", border: "1px solid #555", borderRadius: "20px", padding: "8px 20px", fontSize: "14px", fontWeight: "600", cursor: "pointer" }}
                 >
                   ✏️ Edit Profile
@@ -353,18 +362,31 @@ const Profile = ({ sideNavbar }) => {
             </div>
             <div className="profileVideos">
               {allUserVideos.map((video) => (
-                <Link to={`/video/${video.id}`} key={video.id} className="profileVideo_block">
-                  <div className="profileVideo_block_thumbnail" style={{ position: "relative" }}>
-                    <img className="profileVideo_block_thumbnail_img" src={video.thumbnail} alt={video.title} />
-                    <span style={{ position: "absolute", bottom: "6px", right: "6px", background: "rgba(0,0,0,0.75)", color: "white", fontSize: "11px", padding: "2px 5px", borderRadius: "4px" }}>
-                      {video.duration}
-                    </span>
-                  </div>
-                  <div className="profileVideo_block_detail">
-                    <div className="profileVideo_block_detai_name">{video.title}</div>
-                    <div className="profileVideo_block_detai_about">{video.channel}</div>
-                  </div>
-                </Link>
+                <div key={video.id} style={{ position: "relative" }}>
+                  <Link to={`/video/${video.id}`} className="profileVideo_block">
+                    <div className="profileVideo_block_thumbnail" style={{ position: "relative" }}>
+                      <img className="profileVideo_block_thumbnail_img" src={video.thumbnail} alt={video.title} />
+                      <span style={{ position: "absolute", bottom: "6px", right: "6px", background: "rgba(0,0,0,0.75)", color: "white", fontSize: "11px", padding: "2px 5px", borderRadius: "4px" }}>
+                        {video.duration}
+                      </span>
+                    </div>
+                    <div className="profileVideo_block_detail">
+                      <div className="profileVideo_block_detai_name">{video.title}</div>
+                      <div className="profileVideo_block_detai_about">{video.channel}</div>
+                    </div>
+                  </Link>
+
+                  {/* FIX 3 — DELETE button (only for DB videos owned by this user) */}
+                  {user.isOwner && !String(video.id).startsWith("hard_") && typeof video.id === "number" && (
+                    <button
+                      onClick={() => confirmDelete("video", video.id, null, video.title)}
+                      title="Delete video"
+                      style={deleteBtn}
+                    >
+                      🗑️
+                    </button>
+                  )}
+                </div>
               ))}
             </div>
           </div>
@@ -378,37 +400,49 @@ const Profile = ({ sideNavbar }) => {
             </div>
             <div className="profileVideos">
               {allUserReels.map((reel) => (
-                <div
-                  key={reel.id}
-                  className="profileVideo_block"
-                  style={{ cursor: "pointer" }}
-                  onClick={() =>
-                    navigate("/reels", {
-                      state: {
-                        clickedReel: {
-                          ...reel,
-                          user: reel.user || user.name,
-                          username: reel.username || key,
-                          profilePic: reel.profilePic || user.profilePic,
-                          likes: reel.likes || 0,
+                <div key={reel.id} style={{ position: "relative" }}>
+                  <div
+                    className="profileVideo_block"
+                    style={{ cursor: "pointer" }}
+                    onClick={() =>
+                      navigate("/reels", {
+                        state: {
+                          clickedReel: {
+                            ...reel,
+                            user: reel.user || user.name,
+                            username: reel.username || key,
+                            profilePic: reel.profilePic || user.profilePic,
+                            likes: reel.likes || 0,
+                          },
                         },
-                      },
-                    })
-                  }
-                >
-                  <div className="profileVideo_block_thumbnail" style={{ position: "relative" }}>
-                    <img className="profileVideo_block_thumbnail_img" src={reel.thumbnail} alt={reel.title} />
-                    <span style={{ position: "absolute", top: "6px", left: "6px", background: "rgba(0,0,0,0.7)", color: "white", fontSize: "10px", padding: "2px 6px", borderRadius: "4px", fontWeight: "600" }}>
-                      🎬 Reel
-                    </span>
-                    <span style={{ position: "absolute", bottom: "6px", right: "6px", background: "rgba(0,0,0,0.7)", color: "white", fontSize: "11px", padding: "2px 5px", borderRadius: "4px" }}>
-                      {reel.duration}
-                    </span>
+                      })
+                    }
+                  >
+                    <div className="profileVideo_block_thumbnail" style={{ position: "relative" }}>
+                      <img className="profileVideo_block_thumbnail_img" src={reel.thumbnail} alt={reel.title} />
+                      <span style={{ position: "absolute", top: "6px", left: "6px", background: "rgba(0,0,0,0.7)", color: "white", fontSize: "10px", padding: "2px 6px", borderRadius: "4px", fontWeight: "600" }}>
+                        🎬 Reel
+                      </span>
+                      <span style={{ position: "absolute", bottom: "6px", right: "6px", background: "rgba(0,0,0,0.7)", color: "white", fontSize: "11px", padding: "2px 5px", borderRadius: "4px" }}>
+                        {reel.duration}
+                      </span>
+                    </div>
+                    <div className="profileVideo_block_detail">
+                      <div className="profileVideo_block_detai_name">{reel.title}</div>
+                      <div className="profileVideo_block_detai_about">{reel.description}</div>
+                    </div>
                   </div>
-                  <div className="profileVideo_block_detail">
-                    <div className="profileVideo_block_detai_name">{reel.title}</div>
-                    <div className="profileVideo_block_detai_about">{reel.description}</div>
-                  </div>
+
+                  {/* DELETE button for DB reels */}
+                  {user.isOwner && reel.id.startsWith("db_") && (
+                    <button
+                      onClick={() => confirmDelete("reel", reel.id, reel.dbId, reel.title)}
+                      title="Delete reel"
+                      style={deleteBtn}
+                    >
+                      🗑️
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -436,7 +470,9 @@ const Profile = ({ sideNavbar }) => {
                 src={editPic || user.profilePic}
                 alt="preview"
                 style={{ width: "72px", height: "72px", borderRadius: "50%", objectFit: "cover", border: "2px solid #ff0000" }}
-                onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(editName || user.name)}&background=ff0000&color=fff&size=72`; }}
+                onError={(e) => {
+                  e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(editName || user.name)}&background=ff0000&color=fff&size=72`;
+                }}
               />
               <div style={{ flex: 1 }}>
                 <p style={{ color: "#aaa", fontSize: "13px", margin: "0 0 6px" }}>Paste Image URL</p>
@@ -462,7 +498,7 @@ const Profile = ({ sideNavbar }) => {
                   formData.append("file", file);
                   formData.append("upload_preset", "youtube-clone");
                   try {
-                    const res = await fetch("https://api.cloudinary.com/v1_1/dwoqk0yue/image/upload", { method: "POST", body: formData });
+                    const res  = await fetch("https://api.cloudinary.com/v1_1/dwoqk0yue/image/upload", { method: "POST", body: formData });
                     const data = await res.json();
                     setEditPic(data.secure_url);
                   } catch {
@@ -513,8 +549,54 @@ const Profile = ({ sideNavbar }) => {
           </div>
         </div>
       )}
+
+      {/* ── Confirm Delete Modal ── */}
+      {deleteTarget && (
+        <div
+          style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.85)", zIndex: 999999, display: "flex", alignItems: "center", justifyContent: "center" }}
+          onClick={(e) => e.target === e.currentTarget && setDeleteTarget(null)}
+        >
+          <div style={{ background: "#212121", borderRadius: "16px", padding: "32px", width: "100%", maxWidth: "380px", border: "1px solid #555", display: "flex", flexDirection: "column", gap: "16px", textAlign: "center" }}>
+            <div style={{ fontSize: "40px" }}>🗑️</div>
+            <h2 style={{ color: "white", margin: 0, fontSize: "18px" }}>Delete {deleteTarget.type}?</h2>
+            <p style={{ color: "#aaa", fontSize: "14px", margin: 0 }}>
+              "<strong style={{ color: "white" }}>{deleteTarget.title}</strong>" will be permanently removed.
+            </p>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button
+                onClick={handleDelete}
+                style={{ flex: 1, background: "#cc0000", color: "white", border: "none", borderRadius: "8px", padding: "12px", fontSize: "15px", fontWeight: "700", cursor: "pointer" }}
+              >
+                Yes, Delete
+              </button>
+              <button
+                onClick={() => setDeleteTarget(null)}
+                style={{ flex: 1, background: "none", border: "1px solid #555", color: "#aaa", borderRadius: "8px", padding: "12px", fontSize: "14px", cursor: "pointer" }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
+};
+
+// ── Shared delete-button style ──────────────────────────────────────────────
+const deleteBtn = {
+  position: "absolute",
+  top: "6px",
+  right: "6px",
+  background: "rgba(200,0,0,0.85)",
+  border: "none",
+  borderRadius: "6px",
+  color: "white",
+  fontSize: "14px",
+  padding: "4px 7px",
+  cursor: "pointer",
+  zIndex: 10,
+  lineHeight: 1,
 };
 
 export default Profile;

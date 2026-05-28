@@ -1,125 +1,149 @@
-/* ✅ Fix profile wrapper */
+/* ── Outer wrapper — must NOT clip scroll ── */
 .profile {
   display: flex;
   width: 100%;
-  min-height: calc(100vh - 56px); /* ← fills full height below navbar */
+  min-height: calc(100vh - 56px);
   padding: 10px 13px 0 13px;
   box-sizing: border-box;
   background-color: black;
   color: white;
   position: relative;
+  /* ✅ NO overflow:hidden here — that was killing the scroll */
 }
 
-/* ✅ Fix profile page — remove justify/align center (causes footer overlap) */
+/* ── Main content column ── */
 .profile_page {
   display: flex;
   flex-direction: column;
+  /* ✅ overflow-y: auto lets this column scroll; NOT hidden */
+  overflow-y: auto;
   overflow-x: hidden;
   flex: 1;
   margin-left: 270px;
   color: white;
   margin-top: 56px;
-  padding-bottom: 40px; /* ← breathing room above footer */
+  padding-bottom: 60px;
   transition: margin-left 0.3s ease;
 }
 
-/* ✅ Same fix for inactive state */
 .profile_page_inactive {
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
   overflow-x: hidden;
   flex: 1;
   margin-left: 0px;
   color: white;
   margin-top: 56px;
-  padding-bottom: 40px; /* ← breathing room above footer */
+  padding-bottom: 60px;
   transition: margin-left 0.3s ease;
 }
 
-.profile_top_section{
-    width: 100%;
-    display: flex;
-    padding: 0 0 20px 0;
-}
-.profile_top_section_profile{
-    width: 15%;
-}
-.profile_top_section_img{
-    width: 100%;
-    border-radius: 50%;
-    height: 100%;
-}
-.profile_top_section_About{
-    display: flex;
-    flex-direction: column;
-    gap: 7px;
-    padding: 0 10px;
-    width: 85%;
-}
-.profile_top_section_About_Name{
-    font-size: 36px;
-    font-weight: 600;
-}
-.profile_top_section_info{
-    font-size: 16px;
-    color: rgb(153, 153, 153);
-}
-.profile_videos{
-    width: 100%;
-}
-.profile_videos_title{
-    font-size: 22px;
-    padding-bottom: 10px;
-    color: rgb(207, 206, 206);
-    font-weight: 500;
-    display: flex;
-    align-items: center;
-    border-bottom: 1px solid rgb(153, 153, 153);   
+/* ── Profile header ── */
+.profile_top_section {
+  width: 100%;
+  display: flex;
+  padding: 0 0 20px 0;
 }
 
+.profile_top_section_profile {
+  width: 140px;
+  flex-shrink: 0;
+}
+
+.profile_top_section_img {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #ff0000;
+}
+
+.profile_top_section_About {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 0 10px;
+  flex: 1;
+}
+
+.profile_top_section_About_Name {
+  font-size: 36px;
+  font-weight: 600;
+}
+
+.profile_top_section_info {
+  font-size: 16px;
+  color: rgb(153, 153, 153);
+}
+
+/* ── Videos / Reels section ── */
+.profile_videos {
+  width: 100%;
+}
+
+.profile_videos_title {
+  font-size: 22px;
+  padding-bottom: 10px;
+  color: rgb(207, 206, 206);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid rgb(153, 153, 153);
+}
+
+/* ── Card grid ── */
 .profileVideos {
   display: flex;
-  flex-wrap: wrap;      /* ← wraps to next line as more videos/reels are added */
-  gap: 16px;            /* ← consistent spacing between cards */
+  flex-wrap: wrap;
+  gap: 16px;
   padding: 10px 0;
 }
-/* ── Fix reel cards (now <div> instead of <Link>) ── */
+
+/* ── Individual card ── */
 .profileVideo_block {
   width: 220px;
   flex-shrink: 0;
-  text-decoration: none;   /* ← for <Link> cards */
-  color: white;            /* ← for <Link> cards */
+  text-decoration: none;
+  color: white;
   cursor: pointer;
-  display: block;          /* ← ensures both <div> and <Link> behave the same */
+  display: block;
 }
 
-/* ── Thumbnail image should not overflow rounded corners ── */
 .profileVideo_block_thumbnail {
   width: 100%;
   height: 140px;
-  overflow: hidden;        /* ← clips image inside bounds */
-  border-radius: 8px;      /* ← optional: matches YouTube-style cards */
+  overflow: hidden;
+  border-radius: 8px;
 }
 
 .profileVideo_block_thumbnail_img {
   width: 100%;
   height: 100%;
-  object-fit: cover;       /* ← prevents image stretching */
-  display: block;          /* ← removes phantom bottom gap under img */
+  object-fit: cover;
+  display: block;
 }
 
 .profileVideo_block_detail {
   display: flex;
   flex-direction: column;
   width: 100%;
-  padding: 6px 0;          /* ← small breathing room below thumbnail */
+  padding: 6px 0;
 }
-.profileVideo_block_detai_name{
-    width: 100%;
-    font-size: 16px;
-    font-weight: 600;
+
+.profileVideo_block_detai_name {
+  width: 100%;
+  font-size: 15px;
+  font-weight: 600;
+  /* Clamp to 2 lines so cards stay the same height */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
-.profileVideo_block_detai_about{
-    color: #ababab;
-    font-size: 13px;
+
+.profileVideo_block_detai_about {
+  color: #ababab;
+  font-size: 13px;
+  margin-top: 2px;
 }
