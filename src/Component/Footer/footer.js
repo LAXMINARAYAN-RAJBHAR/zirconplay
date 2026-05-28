@@ -5,7 +5,7 @@ const Footer = () => {
   return (
     <div className="footer">
       <p>© 2021 - {new Date().getFullYear()} ZIXPLON&reg; All rights reserved.</p>
-      <p>Origin: <span className="footer_dev">Made In India</span></p>
+      <p>Origin: <span className="footer_dev">Made in India</span></p>
       <div className="footer_links">
         <a href="#/terms-and-conditions" target="_blank" rel="noopener noreferrer" className="footer_link">Terms &amp; Conditions</a>
         <span className="footer_divider">|</span>
