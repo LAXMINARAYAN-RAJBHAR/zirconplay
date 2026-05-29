@@ -124,6 +124,11 @@ const ShortCard = ({ short, incrementView, viewCounts, handleDeleteReel, navigat
   const cardRef = useRef(null);
   const firedRef = useRef(false);
 
+  // ✅ Local state — starts based on current watched status, can flip to false
+  const [showNew, setShowNew] = useState(
+    () => !!short.dbId && !isWatched("reel", short.dbId, watchedContentIds)
+  );
+
   useEffect(() => {
     if (!short.dbId) return;
     firedRef.current = false;
@@ -131,6 +136,10 @@ const ShortCard = ({ short, incrementView, viewCounts, handleDeleteReel, navigat
       ([entry]) => {
         if (entry.isIntersecting && entry.intersectionRatio >= 0.6 && !firedRef.current) {
           firedRef.current = true;
+          // ✅ Set localStorage immediately so isWatched returns true
+          localStorage.setItem(`viewed_reel_${short.dbId}`, "true");
+          localStorage.setItem(`lastViewed_reel_${short.dbId}`, String(Date.now()));
+          setShowNew(false); // ✅ Hide "New" tag immediately on this card
           incrementView(String(short.dbId), "reel");
         }
       },
@@ -141,10 +150,14 @@ const ShortCard = ({ short, incrementView, viewCounts, handleDeleteReel, navigat
     return () => observer.disconnect();
   }, [short.dbId, incrementView]);
 
-  const vcKey = short.dbId ? "reel_" + short.dbId : null;
+  // ✅ Also sync if watchedContentIds updates from Supabase (e.g. tab refocus)
+  useEffect(() => {
+    if (short.dbId && isWatched("reel", short.dbId, watchedContentIds)) {
+      setShowNew(false);
+    }
+  }, [watchedContentIds, short.dbId]);
 
-  // ── "New" disappears after 10s watch — checked via localStorage + Supabase ──
-  const showNew = short.dbId && !isWatched("reel", short.dbId, watchedContentIds);
+  const vcKey = short.dbId ? "reel_" + short.dbId : null;
 
   return (
     <div
@@ -152,7 +165,12 @@ const ShortCard = ({ short, incrementView, viewCounts, handleDeleteReel, navigat
       className="homePage_shortCard"
       style={{ cursor: "pointer", position: "relative" }}
       onClick={() => {
-        if (short.dbId) incrementView(String(short.dbId), "reel");
+        if (short.dbId) {
+          localStorage.setItem(`viewed_reel_${short.dbId}`, "true");
+          localStorage.setItem(`lastViewed_reel_${short.dbId}`, String(Date.now()));
+          setShowNew(false); // ✅ Also hide on manual click
+          incrementView(String(short.dbId), "reel");
+        }
         navigate("/reels/" + short.id, { state: { clickedReel: short } });
       }}
     >
