@@ -767,13 +767,11 @@ const Video = () => {
       setLiked(false);
       setLikeCount((c) => c - 1);
     } else {
-      await supabase
-        .from("likes")
-        .insert({
-          user_id: userId,
-          content_id: String(id),
-          content_type: "video",
-        });
+      await supabase.from("likes").insert({
+        user_id: userId,
+        content_id: String(id),
+        content_type: "video",
+      });
       setLiked(true);
       setLikeCount((c) => c + 1);
       if (disliked) setDisliked(false);
@@ -1144,17 +1142,20 @@ const Video = () => {
                 </Link>
                 <div className="youtubePostProfileSubs">2024-07-09</div>
               </div>
-              <div
-                className="subscribeBtnYoutube"
-                onClick={handleSubscribe}
-                style={{
-                  background: isSubscribed ? "#555" : "#ff0000",
-                  cursor: "pointer",
-                  color: "white",
-                }}
-              >
-                {isSubscribed ? "Subscribed" : "Subscribe"}
-              </div>
+              {loggedInUser !==
+                (video.username || video.channel?.toLowerCase()) && (
+                <div
+                  className="subscribeBtnYoutube"
+                  onClick={handleSubscribe}
+                  style={{
+                    background: isSubscribed ? "#555" : "#ff0000",
+                    cursor: "pointer",
+                    color: "white",
+                  }}
+                >
+                  {isSubscribed ? "Subscribed" : "Subscribe"}
+                </div>
+              )}
             </div>
           </div>
 
@@ -1189,7 +1190,10 @@ const Video = () => {
             <div className="youtubeSelfComment">
               <img
                 className="video_youtubeSelfCommentProfile"
-                src="https://th.bing.com/th/id/OIP.8gLtXrl4KYPfPA6QyMnlUwHaEK?w=304&h=180&c=7&pid=1.7"
+                src={
+                  localStorage.getItem("profilePic") ||
+                  `https://ui-avatars.com/api/?name=${encodeURIComponent(loggedInUser)}&background=ff0000&color=fff&size=40`
+                }
                 alt="self"
               />
               <div className="addAComment">
@@ -1221,7 +1225,7 @@ const Video = () => {
                   <div className="youtubeSelfComment" key={c.id}>
                     <img
                       className="video_youtubeSelfCommentProfile"
-                      src="https://th.bing.com/th/id/OIP.8gLtXrl4KYPfPA6QyMnlUwHaEK?w=304&h=180&c=7&pid=1.7"
+                      src={`https://ui-avatars.com/api/?name=${encodeURIComponent(c.user)}&background=333&color=fff&size=40`}
                       alt="commenter"
                     />
                     <div className="others_commentSection">
