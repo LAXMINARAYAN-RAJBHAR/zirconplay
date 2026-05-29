@@ -8,10 +8,18 @@ export default async function handler(req) {
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
+  const ua = req.headers.get("user-agent") || "";
+  const isCrawler = /whatsapp|telegram|twitterbot|facebookexternalhit|linkedinbot|slackbot|discordbot/i.test(ua);
+
+  if (!id || !isCrawler) {
+    // Real user — serve React app
+    const indexRes = await fetch(new URL("/index.html", req.url));
+    const html = await indexRes.text();
+    return new Response(html, { headers: { "content-type": "text/html" } });
+  }
+
   try {
     const table = type === "reel" ? "reels" : "videos";
-
-    // Cast id to integer explicitly
     const res = await fetch(
       `${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}&select=*`,
       {
@@ -23,23 +31,40 @@ export default async function handler(req) {
       }
     );
 
-    const raw = await res.text(); // get raw response first
-    const data = JSON.parse(raw);
+    const data = await res.json();
     const item = data?.[0];
 
-    return new Response(
-      `<h1>DEBUG</h1>
-       <p>Table: ${table}, ID: ${id}</p>
-       <p>HTTP Status: ${res.status}</p>
-       <p>Raw Response: <pre>${raw}</pre></p>
-       <p>Title: ${item?.title || "not found"}</p>
-       <p>Thumbnail URL: ${item?.thumbnail_url || "not found"}</p>`,
-      { headers: { "content-type": "text/html" } }
-    );
+    const title = item?.title || "Watch on ZIXPLON";
+    const description = item?.description || item?.channel || "Watch videos and reels on ZIXPLON";
+    const image = item?.thumbnail_url || item?.thumbnail || "https://zixplon-tawny.vercel.app/logo192.png";
+    const url = `https://zixplon-tawny.vercel.app/${type === "reel" ? "reels" : "video"}/${id}`;
+
+    const html = `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>${title} — ZIXPLON</title>
+    <meta property="og:type" content="video.other" />
+    <meta property="og:title" content="${title}" />
+    <meta property="og:description" content="${description}" />
+    <meta property="og:image" content="${image}" />
+    <meta property="og:image:width" content="1280" />
+    <meta property="og:image:height" content="720" />
+    <meta property="og:url" content="${url}" />
+    <meta property="og:site_name" content="ZIXPLON" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${title}" />
+    <meta name="twitter:description" content="${description}" />
+    <meta name="twitter:image" content="${image}" />
+    <meta http-equiv="refresh" content="0;url=${url}" />
+  </head>
+  <body>
+    <p>Redirecting to <a href="${url}">${title}</a>...</p>
+  </body>
+</html>`;
+
+    return new Response(html, { headers: { "content-type": "text/html" } });
   } catch (err) {
-    return new Response(
-      `<h1>ERROR</h1><pre>${err.message}\n${err.stack}</pre>`,
-      { headers: { "content-type": "text/html" } }
-    );
+    return new Response(`<p>Error: ${err.message}</p>`, { headers: { "content-type": "text/html" } });
   }
 }
