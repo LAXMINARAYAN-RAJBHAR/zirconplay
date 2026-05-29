@@ -796,7 +796,7 @@ const Video = () => {
     const isDbVideo = video?.isDb;
     const shareUrl = isDbVideo
       ? `https://zixplon-tawny.vercel.app/api/og?type=video&id=${id}`
-      : window.location.href;
+      : window.location.href = "/#/" + something;
     navigator.clipboard.writeText(shareUrl).catch(() => {});
     setShareToast(true);
     setTimeout(() => setShareToast(false), 2500);
