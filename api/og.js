@@ -12,11 +12,11 @@ export default async function handler(req) {
   const isCrawler = /whatsapp|telegram|twitterbot|facebookexternalhit|linkedinbot|slackbot|discordbot/i.test(ua);
 
   if (!id || !isCrawler) {
-    // Real user — serve React app
-    const indexRes = await fetch(new URL("/index.html", req.url));
-    const html = await indexRes.text();
-    return new Response(html, { headers: { "content-type": "text/html" } });
-  }
+  return new Response(null, {
+    status: 302,
+    headers: { Location: `/${type === "reel" ? "reels" : "video"}/${id}` },
+  });
+}
 
   try {
     const table = type === "reel" ? "reels" : "videos";
