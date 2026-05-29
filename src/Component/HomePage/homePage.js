@@ -516,6 +516,7 @@ const HomePage = ({ sideNavbar }) => {
     const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
     if (lastViewed && now - parseInt(lastViewed, 10) < TWENTY_FOUR_HOURS) return;
     localStorage.setItem(storageKey, String(now));
+    localStorage.setItem(`viewed_${contentType}_${contentId}`, "true");
     const key = `${contentType}_${contentId}`;
     setViewCounts((prev) => ({ ...prev, [key]: (prev[key] ?? 0) + 1 }));
     try {
