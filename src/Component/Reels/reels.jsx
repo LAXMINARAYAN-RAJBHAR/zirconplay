@@ -204,12 +204,9 @@ const ReelItem = ({ reel, allReels }) => {
   const handleShare = () => {
   const isDbReel = String(reel.id).startsWith("db_");
   const dbId = isDbReel ? String(reel.id).replace("db_", "") : null;
-
-  // ✅ Always build from reel.id — never from window.location
   const url = isDbReel
     ? `https://zixplon-tawny.vercel.app/api/og?type=reel&id=${dbId}`
     : `https://zixplon-tawny.vercel.app/reels/${reel.id}`;
-
   navigator.clipboard.writeText(url).catch(() => {});
   setShareToast(true);
   setTimeout(() => setShareToast(false), 2500);
