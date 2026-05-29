@@ -100,6 +100,13 @@ const formatViews = (n) => {
   return n + " views";
 };
 
+// ── Helper: check if content is watched (localStorage + Supabase set) ──
+const isWatched = (contentType, contentId, watchedContentIds) => {
+  const localKey = `viewed_${contentType}_${contentId}`;
+  if (localStorage.getItem(localKey) === "true") return true;
+  return watchedContentIds.has(`${contentType}_${String(contentId)}`);
+};
+
 const useIsMobile = () => {
   const [mobile, setMobile] = useState(() => window.innerWidth <= 768);
   useEffect(() => {
@@ -136,8 +143,8 @@ const ShortCard = ({ short, incrementView, viewCounts, handleDeleteReel, navigat
 
   const vcKey = short.dbId ? "reel_" + short.dbId : null;
 
-  // ── "New" tag: disappears only after 10s playback (tracked in views table) ──
-  const isNew = short.dbId && !watchedContentIds.has("reel_" + String(short.dbId));
+  // ── "New" disappears after 10s watch — checked via localStorage + Supabase ──
+  const showNew = short.dbId && !isWatched("reel", short.dbId, watchedContentIds);
 
   return (
     <div
@@ -154,13 +161,12 @@ const ShortCard = ({ short, incrementView, viewCounts, handleDeleteReel, navigat
         <div className="homePage_shortPlay">▶</div>
         <div className="homePage_shortDuration">{short.duration}</div>
 
-        {/* ── New tag for reels: disappears after 10s watch ── */}
-        {isNew && (
+        {showNew && (
           <div style={{
             position: "absolute", top: "8px", left: "8px",
             background: "#ff6600", color: "white",
             fontSize: "10px", fontWeight: "700",
-            padding: "2px 7px", borderRadius: "4px",
+            padding: "2px 7px", borderRadius: "4px", zIndex: 2,
           }}>New</div>
         )}
 
@@ -218,9 +224,7 @@ const WatchPage = ({ initialVideoId, initialTitle, initialChannel, onClose, sugg
     const target = suggestions[clampedIdx];
     if (target && onIncrementView) {
       const isYTItem = !!target.snippet;
-      if (!isYTItem && target.src && target.id) {
-        onIncrementView(String(target.id), "video");
-      }
+      if (!isYTItem && target.src && target.id) onIncrementView(String(target.id), "video");
     }
     setCurrentIndex(clampedIdx);
     setIsLiked(false);
@@ -263,23 +267,15 @@ const WatchPage = ({ initialVideoId, initialTitle, initialChannel, onClose, sugg
 
   const addComment = () => {
     if (!newComment.trim()) return;
-    setComments((prev) => [
-      { id: Date.now(), user: "You", avatar: "YO", text: newComment.trim(), likes: 0, time: "Just now" },
-      ...prev,
-    ]);
+    setComments((prev) => [{ id: Date.now(), user: "You", avatar: "YO", text: newComment.trim(), likes: 0, time: "Just now" }, ...prev]);
     setNewComment("");
   };
 
   const toggleCommentLike = (id) => {
     setLikedComments((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-        setComments((c) => c.map((x) => x.id === id ? { ...x, likes: x.likes - 1 } : x));
-      } else {
-        next.add(id);
-        setComments((c) => c.map((x) => x.id === id ? { ...x, likes: x.likes + 1 } : x));
-      }
+      if (next.has(id)) { next.delete(id); setComments((c) => c.map((x) => x.id === id ? { ...x, likes: x.likes - 1 } : x)); }
+      else { next.add(id); setComments((c) => c.map((x) => x.id === id ? { ...x, likes: x.likes + 1 } : x)); }
       return next;
     });
   };
@@ -474,27 +470,43 @@ const HomePage = ({ sideNavbar }) => {
   const [dbReels, setDbReels] = useState([]);
   const [viewCounts, setViewCounts] = useState({});
 
-  // ── watchedContentIds: Set of "video_ID" or "reel_ID" strings
-  // populated from the `views` table — drives the "New" tag logic ──
+  // ── watchedContentIds from Supabase views table ──
   const [watchedContentIds, setWatchedContentIds] = useState(new Set());
 
   const loggedInUsername = localStorage.getItem("username") || "";
 
-  // ── Load watched content IDs from Supabase views table ──
+  // ── Load watched IDs: on mount + on tab focus + on visibility change ──
+  // This ensures "New" tag disappears when user returns from watching a reel/video
+  const loadWatchedIds = async () => {
+    const userId = localStorage.getItem("userId");
+    if (!userId) return;
+    const { data } = await supabase
+      .from("views")
+      .select("content_id, content_type")
+      .eq("user_id", userId);
+    if (data) {
+      const ids = new Set(data.map((r) => `${r.content_type}_${r.content_id}`));
+      setWatchedContentIds(ids);
+    }
+  };
+
   useEffect(() => {
-    const loadWatchedIds = async () => {
-      const userId = localStorage.getItem("userId");
-      if (!userId) return;
-      const { data } = await supabase
-        .from("views")
-        .select("content_id, content_type")
-        .eq("user_id", userId);
-      if (data) {
-        const ids = new Set(data.map((r) => r.content_type + "_" + r.content_id));
-        setWatchedContentIds(ids);
-      }
-    };
     loadWatchedIds();
+
+    // Re-fetch when user switches back to this tab
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") loadWatchedIds();
+    };
+    // Re-fetch when window regains focus (e.g. navigating back)
+    const handleFocus = () => loadWatchedIds();
+
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("focus", handleFocus);
+    };
   }, []);
 
   const incrementView = async (contentId, contentType) => {
@@ -698,10 +710,10 @@ const HomePage = ({ sideNavbar }) => {
     </div>
   );
 
-  // ── VideoCard: "New" tag disappears only after 10s watch (from views table) ──
+  // ── VideoCard ──
+  // "New" tag disappears only after user has watched 10s (tracked via views table + localStorage)
   const VideoCard = ({ video, isUploaded = false, showDelete = false }) => {
-    // isNew = uploaded video that this user has NOT yet watched 10s of
-    const isNew = isUploaded && !watchedContentIds.has("video_" + String(video.id));
+    const showNew = isUploaded && !isWatched("video", video.id, watchedContentIds);
     const isOwner = showDelete && isUploaded && loggedInUsername && video.username === loggedInUsername;
     return (
       <div className="youtube_thumbnailBox" style={{ position: "relative" }}>
@@ -711,9 +723,8 @@ const HomePage = ({ sideNavbar }) => {
         <Link to={"/video/" + video.id} className="youtube_thumbnailWrapper" onClick={() => { if (isUploaded) incrementView(video.id, "video"); }}>
           <img src={video.thumbnail} alt={video.title} className="youtube_thumbnailPic" />
           <div className="youtube_timingThumbnail">{video.duration}</div>
-          {/* ── New tag: only shows if user hasn't watched 10s yet ── */}
-          {isNew && (
-            <div style={{ position: "absolute", top: "8px", left: "8px", background: "#ff6600", color: "white", fontSize: "10px", fontWeight: "700", padding: "2px 7px", borderRadius: "4px" }}>New</div>
+          {showNew && (
+            <div style={{ position: "absolute", top: "8px", left: "8px", background: "#ff6600", color: "white", fontSize: "10px", fontWeight: "700", padding: "2px 7px", borderRadius: "4px", zIndex: 2 }}>New</div>
           )}
           <div className="youtube_playOverlay"><div className="youtube_playButton">▶</div></div>
         </Link>
@@ -818,7 +829,7 @@ const HomePage = ({ sideNavbar }) => {
                 const rowReels = allReels.slice(rowIndex * 10, rowIndex * 10 + 10);
                 rows.push(
                   <React.Fragment key={rowIndex}>
-                    {rowReels.length > 0 && <ShortsRow data={rowReels} title={rowIndex === 0 ? "Reels" : "More Reels"} />}
+                    {rowReels.length > 0 && <ShortsRow data={rowReels} title={rowIndex === 0 ? "Shorts" : "More Shorts"} />}
                     <div className="youtube_VideoGrid">
                       {rowIndex === 0 && dbLoading && [...Array(4)].map((_, i) => <SkeletonCard key={i} />)}
                       {allVids.slice(rowIndex * 12, rowIndex * 12 + 12).map((v) => (
