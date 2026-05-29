@@ -8,23 +8,6 @@ export default async function handler(req) {
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
-  const ua = req.headers.get("user-agent") || "";
-  const isCrawler = /whatsapp|telegram|twitterbot|facebookexternalhit|linkedinbot|slackbot|discordbot/i.test(ua);
-
-  // Non-crawler: serve the React app's index.html directly
-  if (!isCrawler) {
-    const origin = new URL(req.url).origin;
-    const indexRes = await fetch(`${origin}/index.html`);
-    const html = await indexRes.text();
-    return new Response(html, {
-      headers: {
-        "content-type": "text/html; charset=utf-8",
-        "x-robots-tag": "noindex",
-      },
-    });
-  }
-
-  // Crawler: return OG meta tags
   try {
     const table = type === "reel" ? "reels" : "videos";
     const res = await fetch(
@@ -63,6 +46,7 @@ export default async function handler(req) {
     <meta name="twitter:title" content="${title}" />
     <meta name="twitter:description" content="${description}" />
     <meta name="twitter:image" content="${image}" />
+    <meta http-equiv="refresh" content="0;url=${url}" />
   </head>
   <body>
     <p>Redirecting to <a href="${url}">${title}</a>...</p>
