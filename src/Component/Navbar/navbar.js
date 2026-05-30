@@ -1195,36 +1195,24 @@ const Navbar = ({
                 minWidth: "210px",
               }}
             >
-              {/* Upload Video / Short */}
-              <div
+              {/* Upload Button - direct navigate */}
+              <span
                 onClick={() => {
-                  setShowUploadDropdown(false);
                   if (!currentUser) {
-                    setLogin(true); // ✅ guard
+                    setLogin(true);
                     return;
                   }
                   navigate("/763/upload");
                 }}
                 style={{
+                  cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
-                  gap: "12px",
-                  padding: "13px 16px",
-                  cursor: "pointer",
-                  color: "white",
-                  fontSize: "14px",
-                  transition: "background 0.2s",
                 }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.background = "#2a2a2a")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.background = "transparent")
-                }
+                title="Upload Video / Short"
               >
-                <VideoCallIcon sx={{ fontSize: "22px", color: "#aaa" }} />
-                Upload Video / Short
-              </div>
+                <VideoCallIcon sx={{ fontSize: "30px", color: "white" }} />
+              </span>
             </div>
           )}
         </div>
