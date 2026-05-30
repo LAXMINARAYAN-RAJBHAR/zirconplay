@@ -22,6 +22,10 @@ import Help from "./Pages/Help/help";
 import ContactSupport from "./Pages/ContactSupport/contactSupport";
 import ReportProblem from "./Pages/ReportProblem/reportProblem";
 import { supabase } from "./config/supabase";
+import {
+  AboutPage, PrivacyPolicyPage, DmcaPage,
+  CommunityGuidelinesPage, AdvertisePage, ReportPage
+} from "./Pages/ZixplonPages";
 
 function App() {
   const location = useLocation();
@@ -229,6 +233,12 @@ useEffect(() => {
           <Route path="/help" element={<Help />} />
           <Route path="/contact" element={<ContactSupport />} />
           <Route path="/report" element={<ReportProblem />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+          <Route path="/dmca" element={<DmcaPage />} />
+          <Route path="/community-guidelines" element={<CommunityGuidelinesPage />} />
+          <Route path="/advertise" element={<AdvertisePage />} />
+          <Route path="/report" element={<ReportPage />} />
         </Routes>
       </div>
 
