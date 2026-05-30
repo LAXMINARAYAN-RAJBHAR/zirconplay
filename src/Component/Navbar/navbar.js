@@ -12,7 +12,6 @@ import HistoryIcon from "@mui/icons-material/History";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import Login from "../Login/login";
 import { supabase } from "../../config/supabase";
-import RecordModal from "../RecordModal/RecordModal";
 
 // ─── Country Code Hook ─────────────────────────────────────────────────────────
 const useCountry = () => {
@@ -310,13 +309,10 @@ const Navbar = ({
   const [logoKey, setLogoKey] = useState(0);
   const [searchBarActive, setSearchBarActive] = useState(false);
   const [logoHovered, setLogoHovered] = useState(false);
-  const [showRecordModal, setShowRecordModal] = useState(false);
-  const [showUploadDropdown, setShowUploadDropdown] = useState(false); // ✅ upload dropdown state
 
   const dropdownRef = useRef(null);
   const notifRef = useRef(null);
-  const uploadDropdownRef = useRef(null); // ✅ ref for upload dropdown
-  const profileModalRef = useRef(null); // ✅ ref for profile dropdown
+  const profileModalRef = useRef(null);
   const recognitionRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -413,39 +409,6 @@ const Navbar = ({
     return () => supabase.removeChannel(channel);
   }, [currentUser]);
 
-  // ── Close upload dropdown on outside click (using ref) ── ✅ FIXED
-  useEffect(() => {
-    const h = (e) => {
-      if (
-        uploadDropdownRef.current &&
-        !uploadDropdownRef.current.contains(e.target)
-      ) {
-        setShowUploadDropdown(false);
-      }
-    };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, []);
-
-  // ── Mark all notifications read ──
-  const markAllRead = async () => {
-    if (!currentUser) return;
-    await supabase
-      .from("notifications")
-      .update({ is_read: true })
-      .eq("recipient_username", currentUser)
-      .eq("is_read", false);
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-  };
-
-  // ── Mark one notification read ──
-  const markOneRead = async (id) => {
-    await supabase.from("notifications").update({ is_read: true }).eq("id", id);
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
-    );
-  };
-
   // ── Close search dropdown on outside click ──
   useEffect(() => {
     const h = (e) => {
@@ -485,7 +448,6 @@ const Navbar = ({
   useEffect(() => {
     setShowNotifications(false);
     setNavbarModal(false);
-    setShowUploadDropdown(false); // ✅ also close upload dropdown on navigate
   }, [location.pathname]);
 
   // ── Logo animation ──
@@ -635,19 +597,27 @@ const Navbar = ({
     setIsListening(false);
   };
 
+  // ── Mark all notifications read ──
+  const markAllRead = async () => {
+    if (!currentUser) return;
+    await supabase
+      .from("notifications")
+      .update({ is_read: true })
+      .eq("recipient_username", currentUser)
+      .eq("is_read", false);
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  };
+
+  // ── Mark one notification read ──
+  const markOneRead = async (id) => {
+    await supabase.from("notifications").update({ is_read: true }).eq("id", id);
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
+    );
+  };
+
   const historyCount = suggestionData.history.length;
   const suggCount = suggestionData.items.length;
-
-  // ── Upload dropdown handler ── ✅ FIXED: no more || short-circuit
-  const handleUploadBtnClick = () => {
-    setNavbarModal(false);
-    setShowNotifications(false);
-    if (!currentUser) {
-      setLogin(true); // ✅ open login if not logged in
-      return;
-    }
-    setShowUploadDropdown((prev) => !prev);
-  };
 
   return (
     <div className="navbar">
@@ -667,17 +637,14 @@ const Navbar = ({
             textDecoration: "none",
             padding: "5px",
             borderRadius: "12px",
-            border: logoHovered
-              ? "2px solid rgba(255,0,0,1)"
-              : "2px solid rgba(255,255,255,0.6)",
-            background: logoHovered
-              ? "rgba(255,0,0,0.12)"
-              : "rgba(255,255,255,0.05)",
             transition:
               "border-color 0.25s, background 0.25s, box-shadow 0.25s",
             border: logoHovered
               ? "2px solid rgba(255,0,0,1)"
-              : "1px solid rgba(255, 255, 255, 0.35)", // ← was: "2px solid rgba(255,255,255,0.6)"
+              : "1px solid rgba(255, 255, 255, 0.35)",
+            background: logoHovered
+              ? "rgba(255,0,0,0.12)"
+              : "rgba(255,255,255,0.05)",
           }}
           onMouseEnter={() => setLogoHovered(true)}
           onMouseLeave={() => setLogoHovered(false)}
@@ -1170,52 +1137,20 @@ const Navbar = ({
           </svg>
         </span>
 
-        {/* ✅ Upload Button with Dropdown — ref-based outside click, fixed onClick */}
-        <div ref={uploadDropdownRef} style={{ position: "relative" }}>
-          <span
-            onClick={handleUploadBtnClick}
-            style={{ cursor: "pointer", display: "flex", alignItems: "center" }}
-            title="Upload / Record"
-          >
-            <VideoCallIcon sx={{ fontSize: "30px", color: "white" }} />
-          </span>
-
-          {showUploadDropdown && (
-            <div
-              style={{
-                position: "absolute",
-                top: "42px",
-                right: 0,
-                background: "#212121",
-                borderRadius: "12px",
-                boxShadow: "0 8px 32px rgba(0,0,0,0.8)",
-                zIndex: 99999,
-                border: "1px solid #333",
-                overflow: "hidden",
-                minWidth: "210px",
-              }}
-            >
-              {/* Upload Button - direct navigate */}
-              <span
-                onClick={() => {
-                  if (!currentUser) {
-                    setLogin(true);
-                    return;
-                  }
-                  navigate("/763/upload");
-                }}
-                style={{
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                }}
-                title="Upload Video / Short"
-              >
-                <VideoCallIcon sx={{ fontSize: "30px", color: "white" }} />
-              </span>
-            </div>
-          )}
-        </div>
+        {/* ── Upload Button — direct navigate, no dropdown ── */}
+        <span
+          onClick={() => {
+            if (!currentUser) {
+              setLogin(true);
+              return;
+            }
+            navigate("/763/upload");
+          }}
+          style={{ cursor: "pointer", display: "flex", alignItems: "center" }}
+          title="Upload Video / Short"
+        >
+          <VideoCallIcon sx={{ fontSize: "30px", color: "white" }} />
+        </span>
 
         {/* Notifications */}
         <div ref={notifRef} style={{ position: "relative" }}>
@@ -1487,14 +1422,6 @@ const Navbar = ({
             setCurrentUser(name);
             setLogin(false);
           }}
-        />
-      )}
-
-      {/* ✅ RecordModal — at root level, outside all other divs */}
-      {showRecordModal && (
-        <RecordModal
-          onClose={() => setShowRecordModal(false)}
-          currentUser={currentUser}
         />
       )}
 
