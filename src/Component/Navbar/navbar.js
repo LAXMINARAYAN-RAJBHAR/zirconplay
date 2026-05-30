@@ -1225,50 +1225,6 @@ const Navbar = ({
                 <VideoCallIcon sx={{ fontSize: "22px", color: "#aaa" }} />
                 Upload Video / Short
               </div>
-
-              {/* Divider */}
-              <div style={{ height: "1px", background: "#333" }} />
-
-              {/* Record / Go Live */}
-              <div
-                onClick={() => {
-                  setShowUploadDropdown(false);
-                  if (!currentUser) {
-                    setLogin(true); // ✅ guard
-                    return;
-                  }
-                  setShowRecordModal(true);
-                }}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "12px",
-                  padding: "13px 16px",
-                  cursor: "pointer",
-                  color: "white",
-                  fontSize: "14px",
-                  transition: "background 0.2s",
-                }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.background = "#2a2a2a")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.background = "transparent")
-                }
-              >
-                <span
-                  style={{
-                    width: "8px",
-                    height: "8px",
-                    borderRadius: "50%",
-                    background: "#ff0000",
-                    display: "inline-block",
-                    animation: "pulse 1.5s infinite",
-                    flexShrink: 0,
-                  }}
-                />
-                🔴 Record / Go Live
-              </div>
             </div>
           )}
         </div>
