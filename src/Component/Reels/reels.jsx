@@ -585,6 +585,7 @@ const ReelItem = ({ reel, allReels }) => {
   const isMounted = useRef(true);
   const observerRef = useRef(null);
   const iconTimeoutRef = useRef(null);
+  const commentPanelRef = useRef(null); // ← NEW
 
   const loggedInUser = localStorage.getItem("username") || "Guest";
 
@@ -603,6 +604,21 @@ const ReelItem = ({ reel, allReels }) => {
   const [comments, setComments] = useState([]);
   const [shareToast, setShareToast] = useState(false);
   const [viewCount, setViewCount] = useState(0);
+
+  // ── Close comments panel on outside click ── NEW
+  useEffect(() => {
+    if (!showComments) return;
+    const handleOutsideClick = (e) => {
+      if (
+        commentPanelRef.current &&
+        !commentPanelRef.current.contains(e.target)
+      ) {
+        setShowComments(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [showComments]);
 
   useEffect(() => {
     const loadReactions = async () => {
@@ -649,11 +665,6 @@ const ReelItem = ({ reel, allReels }) => {
     };
     loadViewCount();
   }, [reel.id]);
-
-  // ── 4. Show view count in the reel_info div ──
-  // Add inside <div className="reel_info"> after reel_description:
-  // <div className="reel_view_count" style={{ color: "#aaa", fontSize: "12px", marginTop: "4px" }}>
-  //   👁 {viewCount} {viewCount === 1 ? "view" : "views"}
 
   useEffect(() => {
     const loadSubscription = async () => {
@@ -749,7 +760,6 @@ const ReelItem = ({ reel, allReels }) => {
     setCommentText("");
   };
 
-  // ── Share: same as video.jsx — uses the route URL directly ──
   const handleShare = () => {
     const isDbReel = String(reel.id).startsWith("db_");
     const dbId = isDbReel ? String(reel.id).replace("db_", "") : null;
@@ -789,7 +799,6 @@ const ReelItem = ({ reel, allReels }) => {
       ([entry]) => {
         if (!isMounted.current) return;
         if (entry.isIntersecting) {
-          // ── Update URL when reel scrolls into view ──
           window.history.replaceState(null, "", `/reels/${reel.id}`);
           document.querySelectorAll("video").forEach((v) => {
             if (v !== video) v.pause();
@@ -1021,7 +1030,7 @@ const ReelItem = ({ reel, allReels }) => {
         </div>
 
         {showComments && (
-          <div className="reel_comment_panel">
+          <div className="reel_comment_panel" ref={commentPanelRef}> {/* ← ref added */}
             <div className="reel_comment_input_row">
               <input
                 type="text"
@@ -1099,11 +1108,9 @@ const ReelItem = ({ reel, allReels }) => {
 
 // ─────────────────────────────────────────────
 // Reels Page Component
-// Same pattern as Video.jsx — reads :id from URL params
-// Route must be: <Route path="/reels/:id?" element={<Reels />} />
 // ─────────────────────────────────────────────
 const Reels = () => {
-  const { id } = useParams(); // reel id from URL e.g. /reels/db_16
+  const { id } = useParams();
   const location = useLocation();
   const [dbReels, setDbReels] = useState([]);
   const [dbLoading, setDbLoading] = useState(true);
@@ -1165,7 +1172,6 @@ const Reels = () => {
     return () => supabase.removeChannel(reelsSub);
   }, []);
 
-  // Merge DB reels + hardcoded, no duplicates
   const baseReels = React.useMemo(() => {
     const merged = [...dbReels, ...reelsData];
     const seen = new Set();
@@ -1177,12 +1183,7 @@ const Reels = () => {
     });
   }, [dbReels]);
 
-  // ── Same logic as Video.jsx:
-  // If URL has an id (/reels/db_16), put that reel first.
-  // If came from homepage click (location.state), put that reel first.
-  // Otherwise show all reels normally.
   const allReels = React.useMemo(() => {
-    // Priority 1: URL param (shared link or direct navigation)
     if (id) {
       const target = baseReels.find((r) => String(r.id) === String(id));
       if (target)
@@ -1191,7 +1192,6 @@ const Reels = () => {
           ...baseReels.filter((r) => String(r.id) !== String(id)),
         ];
     }
-    // Priority 2: homepage click via location.state
     const clickedReel = location.state?.clickedReel;
     if (clickedReel) {
       const rest = baseReels.filter(
@@ -1202,7 +1202,6 @@ const Reels = () => {
     return baseReels;
   }, [baseReels, id, location.state]);
 
-  // Scroll to top whenever the target reel changes
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" });
   }, [id]);
