@@ -7,16 +7,17 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Box from "@mui/material/Box";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import { supabase } from "../../config/supabase";
+import RecordModal from "../RecordModal/RecordModal";
 
 const VideoUpload = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-  const user = localStorage.getItem("username");
-  if (!user) {
-    navigate("/signup");
-  }
-}, []);
+    const user = localStorage.getItem("username");
+    if (!user) {
+      navigate("/signup");
+    }
+  }, []);
 
   const [uploadMode, setUploadMode] = useState("video");
 
@@ -37,6 +38,8 @@ const VideoUpload = () => {
   const [saving, setSaving] = useState(false);
   const [thumbSource, setThumbSource] = useState("");
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [showRecordModal, setShowRecordModal] = useState(false);
+  const currentUser = localStorage.getItem("username") || "";
 
   const durationRef = useRef("00:00");
 
@@ -410,7 +413,35 @@ const VideoUpload = () => {
           >
             📱 Shorts
           </div>
+          <div
+            className="upload_mode_btn"
+            onClick={() => setShowRecordModal(true)}
+            style={{ position: "relative" }}
+          >
+            <span
+              style={{
+                position: "absolute",
+                top: "-4px",
+                right: "-4px",
+                width: "8px",
+                height: "8px",
+                borderRadius: "50%",
+                background: "#ff0000",
+                animation: "pulse 1.2s infinite",
+              }}
+            />
+            🔴 Record / Live
+          </div>
         </div>
+
+        {showRecordModal && (
+          <RecordModal
+            onClose={() => setShowRecordModal(false)}
+            currentUser={currentUser}
+          />
+        )}
+
+        <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}`}</style>
 
         {uploadMode === "reel" && (
           <p className="upload_mode_hint">

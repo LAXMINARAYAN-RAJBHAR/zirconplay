@@ -12,6 +12,7 @@ import HistoryIcon from "@mui/icons-material/History";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import Login from "../Login/login";
 import { supabase } from "../../config/supabase";
+import RecordModal from "../RecordModal/RecordModal";
 
 // ─── Country Code Hook ─────────────────────────────────────────────────────────
 const useCountry = () => {
@@ -423,6 +424,7 @@ const Navbar = ({
   const [logoKey, setLogoKey] = useState(0);
   const [searchBarActive, setSearchBarActive] = useState(false);
   const [logoHovered, setLogoHovered] = useState(false);
+  const [showRecordModal, setShowRecordModal] = useState(false);
 
   const dropdownRef = useRef(null);
   const notifRef = useRef(null);
@@ -1128,11 +1130,34 @@ const Navbar = ({
         </span>
 
         <span
-          onClick={() => navigate("/763/upload")}
-          style={{ cursor: "pointer" }}
-        >
-          <VideoCallIcon sx={{ fontSize: "30px", color: "white" }} />
-        </span>
+  onClick={() => setShowRecordModal(true)}
+  title="Record / Go Live"
+  style={{
+    cursor: "pointer",
+    position: "relative",
+    display: "flex",
+    alignItems: "center",
+  }}
+>
+  {/* Red pulsing dot */}
+  <span style={{
+    position: "absolute", top: "-3px", right: "-3px",
+    width: "8px", height: "8px", borderRadius: "50%",
+    background: "#ff0000", animation: "pulse 1.5s infinite",
+    border: "1.5px solid #0f0f0f",
+  }} />
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="white">
+    <circle cx="12" cy="12" r="5" fill="#ff4444"/>
+    <path d="M17 10.5V7a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h12a1 1 0 001-1v-3.5l4 4v-11l-4 4z" fill="white"/>
+  </svg>
+</span>
+
+<span
+  onClick={() => navigate("/763/upload")}
+  style={{ cursor: "pointer" }}
+>
+  <VideoCallIcon sx={{ fontSize: "30px", color: "white" }} />
+</span>
 
         {/* ✅ Notifications — now from Supabase */}
         <div ref={notifRef} style={{ position: "relative" }}>
@@ -1313,6 +1338,12 @@ const Navbar = ({
                     );
                   })
                 )}
+                {showRecordModal && (
+  <RecordModal
+    onClose={() => setShowRecordModal(false)}
+    currentUser={currentUser}
+  />
+)}
               </div>
 
               <div
