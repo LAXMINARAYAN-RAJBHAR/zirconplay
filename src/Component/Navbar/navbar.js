@@ -318,6 +318,27 @@ const Navbar = ({
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
+  const [installPrompt, setInstallPrompt] = useState(null);
+const [showInstall, setShowInstall] = useState(false);
+
+useEffect(() => {
+  const handler = (e) => {
+    e.preventDefault();
+    setInstallPrompt(e);
+    setShowInstall(true);
+  };
+  window.addEventListener("beforeinstallprompt", handler);
+  return () => window.removeEventListener("beforeinstallprompt", handler);
+}, []);
+
+const handleInstall = async () => {
+  if (!installPrompt) return;
+  installPrompt.prompt();
+  const { outcome } = await installPrompt.userChoice;
+  if (outcome === "accepted") setShowInstall(false);
+  setInstallPrompt(null);
+};
+
   // ── Load profile picture ──
   useEffect(() => {
     const loadPic = async () => {
@@ -1136,6 +1157,27 @@ const Navbar = ({
             <path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z" />
           </svg>
         </span>
+
+        {showInstall && (
+  <span
+    onClick={handleInstall}
+    title="Install Zixplon App"
+    style={{
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      gap: "4px",
+      background: "#ff0000",
+      color: "white",
+      fontSize: "12px",
+      fontWeight: "600",
+      padding: "4px 10px",
+      borderRadius: "20px",
+    }}
+  >
+    ⬇ Install App
+  </span>
+)}
 
         {/* ── Upload Button — direct navigate, no dropdown ── */}
         <span
