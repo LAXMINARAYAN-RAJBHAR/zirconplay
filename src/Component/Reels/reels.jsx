@@ -877,17 +877,15 @@ const ReelItem = ({ reel, allReels }) => {
             });
           setDisliked(false);
         }
-        await supabase
-          .from("likes")
-          .upsert(
-            {
-              user_id: userId,
-              content_id: String(reel.id),
-              content_type: "reel",
-              reaction_type: "like",
-            },
-            { onConflict: "user_id,content_id,content_type,reaction_type" },
-          );
+        await supabase.from("likes").upsert(
+          {
+            user_id: userId,
+            content_id: String(reel.id),
+            content_type: "reel",
+            reaction_type: "like",
+          },
+          { onConflict: "user_id,content_id,content_type,reaction_type" },
+        );
         setLiked(true);
       }
       setLikeCount(await fetchCount(reel.id, "reel", "like"));
@@ -930,17 +928,15 @@ const ReelItem = ({ reel, allReels }) => {
             });
           setLiked(false);
         }
-        await supabase
-          .from("likes")
-          .upsert(
-            {
-              user_id: userId,
-              content_id: String(reel.id),
-              content_type: "reel",
-              reaction_type: "dislike",
-            },
-            { onConflict: "user_id,content_id,content_type,reaction_type" },
-          );
+        await supabase.from("likes").upsert(
+          {
+            user_id: userId,
+            content_id: String(reel.id),
+            content_type: "reel",
+            reaction_type: "dislike",
+          },
+          { onConflict: "user_id,content_id,content_type,reaction_type" },
+        );
         setDisliked(true);
       }
       setLikeCount(await fetchCount(reel.id, "reel", "like"));
@@ -969,6 +965,8 @@ const ReelItem = ({ reel, allReels }) => {
             loop
             muted={muted}
             playsInline
+            controlsList="nodownload"
+            onContextMenu={(e) => e.preventDefault()}
             onClick={handleVideoClick}
           >
             <source src={reel.src} type={getVideoType(reel.src)} />
@@ -1030,7 +1028,9 @@ const ReelItem = ({ reel, allReels }) => {
         </div>
 
         {showComments && (
-          <div className="reel_comment_panel" ref={commentPanelRef}> {/* ← ref added */}
+          <div className="reel_comment_panel" ref={commentPanelRef}>
+            {" "}
+            {/* ← ref added */}
             <div className="reel_comment_input_row">
               <input
                 type="text"

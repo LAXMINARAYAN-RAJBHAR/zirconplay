@@ -1050,6 +1050,8 @@ const Video = () => {
             key={video.id}
             controls
             autoPlay
+            controlsList="nodownload"
+            onContextMenu={(e) => e.preventDefault()}
             className="video_youtube_video"
             onPlay={() => setIsVideoPlaying(true)}
             onPause={() => setIsVideoPlaying(false)}
